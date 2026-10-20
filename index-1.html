@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#030a16">
+<title>J.A.R.V.I.S. 2.0 - Personal AI Operating System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   1. THEME TOKENS & BASE
+   ===================================================================== */
+:root{
+  --bg:#030a16; --bg2:#061630; --cyan:#19e6ff; --cyan2:#00a8ff;
+  --glass:rgba(7,26,50,.66); --glass2:rgba(10,40,72,.55);
+  --line:rgba(25,230,255,.26); --line2:rgba(25,230,255,.5);
+  --text:#d9f7ff; --dim:#86b4c8; --ok:#2dffa0; --warn:#ffb84d; --bad:#ff5470; --violet:#9b7bff;
+  --f-head:'Orbitron','Segoe UI',system-ui,sans-serif;
+  --f-body:'Rajdhani','Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 700px at 70% -10%,rgba(0,120,200,.28),transparent 60%),
+    radial-gradient(900px 600px at 0% 100%,rgba(0,80,160,.22),transparent 60%),
+    var(--bg);
+  color:var(--text);font-family:var(--f-body);font-size:16px;line-height:1.35;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+body::before{ /* subtle HUD grid */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background-image:linear-gradient(rgba(25,230,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(25,230,255,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+body::after{ /* scanlines */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:200;
+  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 3px);
+  mix-blend-mode:overlay;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:4px}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:rgba(25,230,255,.25);border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+h1,h2,h3,h4{font-family:var(--f-head);font-weight:700;letter-spacing:.14em}
+
+/* =====================================================================
+   2. LAYOUT: sidebar, topbar, views, bottom bar
+   ===================================================================== */
+#app{position:relative;z-index:1;display:flex;height:100dvh}
+#sidebar{
+  width:252px;flex:none;display:flex;flex-direction:column;gap:14px;padding:12px;
+  background:linear-gradient(180deg,rgba(6,28,56,.9),rgba(3,12,26,.92));border-right:1px solid var(--line);
+  overflow-y:auto;z-index:70;transition:transform .28s ease;
+}
+.logo{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(135deg,rgba(0,120,190,.35),rgba(5,25,50,.4))}
+.logo .ring{width:42px;height:42px;border-radius:50%;border:2px solid var(--cyan);display:grid;place-items:center;box-shadow:0 0 14px var(--cyan),inset 0 0 10px rgba(25,230,255,.4);animation:spin 12s linear infinite}
+.logo .ring i{width:14px;height:14px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+.logo b{display:block;font-family:var(--f-head);font-size:22px;letter-spacing:.3em;color:#fff;text-shadow:0 0 10px var(--cyan)}
+.logo small{font-family:var(--f-head);font-size:8.5px;letter-spacing:.38em;color:var(--cyan)}
+@keyframes spin{to{transform:rotate(360deg)}}
+#nav{display:flex;flex-direction:column;gap:3px}
+#nav button{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;border:1px solid transparent;text-align:left;font-size:17px;font-weight:500;color:#cfeaf5;transition:.18s}
+#nav button svg{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#nav button:hover{background:rgba(25,230,255,.08);box-shadow:0 0 14px rgba(25,230,255,.18)}
+#nav button[aria-current="page"]{border-color:var(--line2);background:linear-gradient(90deg,rgba(25,230,255,.16),transparent);color:#fff;box-shadow:inset 0 0 14px rgba(25,230,255,.14),0 0 12px rgba(25,230,255,.15)}
+#nav .cnt{margin-left:auto;font-size:12px;min-width:24px;text-align:center;padding:1px 7px;border-radius:12px;background:rgba(25,230,255,.14);color:var(--cyan)}
+.voicecard{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--glass)}
+.voicecard h4{font-size:10px;color:var(--cyan);display:flex;justify-content:space-between}
+.voicecard canvas{width:100%;height:46px;display:block;margin:10px 0 2px}
+#voiceLabel{text-align:center;font-size:13px;color:var(--dim)}
+.micbtn{display:block;margin:8px auto 4px;width:70px;height:70px;border-radius:50%;border:2px solid var(--cyan);background:radial-gradient(circle,rgba(25,230,255,.35),rgba(0,60,110,.5));box-shadow:0 0 22px rgba(25,230,255,.5),inset 0 0 14px rgba(25,230,255,.4);display:grid;place-items:center}
+.micbtn svg{width:30px;height:30px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round}
+.micbtn.on{animation:pulse 1.2s infinite;border-color:var(--ok)}
+@keyframes pulse{0%,100%{box-shadow:0 0 14px rgba(25,230,255,.5)}50%{box-shadow:0 0 34px rgba(25,230,255,.95),0 0 60px rgba(25,230,255,.4)}}
+.llmline{font-size:12px;color:var(--dim);text-align:center;margin-top:6px}
+.btn{padding:9px 14px;border-radius:22px;border:1px solid var(--line2);background:rgba(25,230,255,.07);color:var(--text);letter-spacing:.05em;transition:.18s;font-weight:600}
+.btn:hover{background:rgba(25,230,255,.18);box-shadow:0 0 16px rgba(25,230,255,.3)}
+.btn.sm{padding:5px 10px;font-size:13px;border-radius:14px}
+.btn.danger{border-color:rgba(255,84,112,.6);color:#ffb0bd}
+.btn.danger:hover{background:rgba(255,84,112,.16);box-shadow:0 0 16px rgba(255,84,112,.3)}
+#scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:65}
+
+#main{flex:1;min-width:0;display:flex;flex-direction:column}
+#topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:rgba(3,10,22,.7);backdrop-filter:blur(8px);z-index:30}
+#menuBtn{display:none;width:40px;height:40px;border:1px solid var(--line2);border-radius:8px}
+#menuBtn svg,.ib svg{width:22px;height:22px;stroke:var(--text);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:20px;border:1px solid var(--line2);background:rgba(2,16,34,.8);font-family:var(--f-head);font-size:11px;letter-spacing:.12em;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px currentColor;color:var(--ok);flex:none}
+.dot.warn{background:var(--warn);color:var(--warn)}.dot.bad{background:var(--bad);color:var(--bad)}.dot.idle{background:#4a6d80;color:#4a6d80}
+#clockBox{flex:1;text-align:center;line-height:1.05}
+#dateEl{font-size:15px;font-weight:600}
+#clock{font-family:var(--f-head);font-size:28px;font-weight:700;color:var(--cyan);text-shadow:0 0 14px rgba(25,230,255,.7)}
+.searchwrap{position:relative;width:min(300px,28vw)}
+#searchInput{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line2);background:rgba(2,16,34,.8)}
+#searchInput::placeholder{color:var(--dim)}
+.dd{position:absolute;top:calc(100% + 6px);right:0;width:min(360px,92vw);max-height:60vh;overflow:auto;border:1px solid var(--line2);border-radius:8px;background:rgba(4,18,38,.97);padding:6px;display:none;z-index:50;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.dd.open{display:block}
+.dd button,.dd div.it{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:15px}
+.dd button:hover{background:rgba(25,230,255,.12)}
+.dd small{color:var(--cyan);font-size:11px;letter-spacing:.1em;margin-right:6px}
+.ib{position:relative;width:42px;height:42px;border:1px solid var(--line2);border-radius:8px;display:grid;place-items:center;background:rgba(2,16,34,.8)}
+.ib:hover{box-shadow:0 0 14px rgba(25,230,255,.4)}
+.badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;display:none;place-items:center;padding:0 4px}
+.profile{display:flex;align-items:center;gap:10px;padding:5px 12px;border:1px solid var(--line2);border-radius:24px;background:rgba(2,16,34,.8)}
+.profile b{display:block;font-size:14px;line-height:1}.profile small{font-size:11px;color:var(--dim)}
+.profile .av{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--cyan);display:grid;place-items:center;font-family:var(--f-head);font-size:12px;color:var(--cyan)}
+
+#views{flex:1;overflow-y:auto;padding:16px;scroll-behavior:smooth}
+.view{display:none;animation:fadein .35s ease}
+.view.active{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.vhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.vhead h2{font-size:18px;color:#fff;text-shadow:0 0 10px rgba(25,230,255,.5)}
+.vhead .sp{flex:1}
+
+/* panels (glassmorphism + neon corner brackets) */
+.panel{position:relative;background:var(--glass);border:1px solid var(--line);border-radius:6px;padding:14px;backdrop-filter:blur(10px);box-shadow:0 0 24px rgba(0,120,200,.1),inset 0 0 30px rgba(25,230,255,.03);transition:box-shadow .25s,border-color .25s}
+.panel:hover{border-color:var(--line2);box-shadow:0 0 26px rgba(25,230,255,.18),inset 0 0 30px rgba(25,230,255,.05)}
+.panel::before,.panel::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--cyan);opacity:.8;pointer-events:none}
+.panel::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.panel::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.panel>h3{font-size:12.5px;color:#cdf6ff;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.panel>h3 .sp{flex:1}
+.tag{font-family:var(--f-body);letter-spacing:.08em;font-size:10.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--line2);color:var(--cyan);text-transform:uppercase;font-weight:700;white-space:nowrap}
+.tag.sim{border-color:rgba(255,184,77,.55);color:var(--warn);opacity:.85}
+.tag.live{border-color:rgba(45,255,160,.55);color:var(--ok)}
+.tag.err{border-color:rgba(255,84,112,.6);color:var(--bad)}
+.link{color:var(--cyan);font-size:14px;text-decoration:none;opacity:.9}.link:hover{text-shadow:0 0 8px var(--cyan)}
+.muted{color:var(--dim)}
+
+#dash{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}
+.p-ov{grid-column:span 3}.p-core{grid-column:span 6;min-height:440px;padding:0;overflow:hidden}.p-feed{grid-column:span 3}
+.p-agents{grid-column:span 5}.p-time{grid-column:span 4}.p-quick{grid-column:span 3}
+.p-sys{grid-column:span 4}.p-mem{grid-column:span 4}.p-llm{grid-column:span 4}
+
+.ovrow{display:flex;align-items:center;gap:12px;padding:8px 10px;margin-bottom:6px;border:1px solid var(--line);border-radius:5px;background:rgba(5,30,58,.55)}
+.ovrow .ico{width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;color:var(--cyan);font-size:13px;font-family:var(--f-head)}
+.ovrow b{display:block;font-size:15px;line-height:1.1}.ovrow small{font-size:12px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.cy{color:var(--cyan)}
+
+/* core */
+#coreCanvas{position:absolute;inset:0;width:100%;height:100%}
+.coretxt{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none}
+.coretxt h1{font-size:clamp(34px,6vw,64px);letter-spacing:.32em;padding-left:.32em;color:var(--cyan);text-shadow:0 0 22px var(--cyan),0 0 60px rgba(25,230,255,.5);font-weight:900}
+.coretxt h2{font-size:clamp(12px,1.8vw,20px);letter-spacing:.5em;padding-left:.5em;color:#bdefff;margin-top:6px}
+.coretxt p{font-family:var(--f-head);margin-top:12px;font-size:13px;color:#fff}
+.corestate{position:absolute;left:14px;bottom:12px;font-size:12px;letter-spacing:.12em;color:var(--dim)}
+.corelabel{position:absolute;left:14px;top:12px}
+
+.feeditem{display:flex;gap:10px;align-items:center;padding:7px 9px;margin-bottom:6px;border:1px solid var(--line);border-radius:5px;background:rgba(5,30,58,.5);font-size:14.5px}
+.feeditem .k{flex:1;min-width:0}.feeditem b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14.5px}
+.feeditem small{color:var(--dim);font-size:12px}
+.agentgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.agent{padding:10px;border:1px solid var(--line);border-radius:6px;background:rgba(5,30,58,.5);cursor:pointer;text-align:left;transition:.18s;position:relative}
+.agent:hover,.agent.sel{border-color:var(--line2);box-shadow:0 0 14px rgba(25,230,255,.25)}
+.agent b{display:block;font-size:14.5px}.agent small{font-size:12px}
+.agent canvas{width:100%;height:26px;display:block;margin-top:4px}
+.tl{display:flex;flex-direction:column;gap:8px}
+.tlrow{display:grid;grid-template-columns:50px 12px 1fr auto;gap:8px;align-items:center;font-size:14px}
+.tlrow time{font-size:12px;color:var(--dim)}
+.tlrow i{width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.tlrow span.t{border-bottom:1px solid var(--line);padding-bottom:3px}
+.qc{display:flex;flex-direction:column;gap:8px}
+.qc button{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:5px;background:rgba(5,30,58,.55);text-align:left;font-size:15.5px;transition:.18s}
+.qc button:hover{border-color:var(--line2);background:rgba(25,230,255,.12)}
+.qc button i{font-style:normal;width:22px;height:22px;border:1px solid var(--line2);border-radius:4px;display:grid;place-items:center;color:var(--cyan);font-size:13px}
+.rings{display:flex;justify-content:space-around;gap:6px;padding:6px 0}
+.ring{text-align:center;font-size:12px}
+.ring svg{width:96px;height:96px;transform:rotate(-90deg)}
+.ring .tr{stroke:rgba(25,230,255,.12);fill:none;stroke-width:8}
+.ring .vl{stroke:var(--cyan);fill:none;stroke-width:8;stroke-linecap:round;filter:drop-shadow(0 0 5px var(--cyan));transition:stroke-dasharray .6s}
+.ring .num{margin-top:-62px;height:62px;display:grid;place-content:center;font-family:var(--f-head);font-size:11px;line-height:1.5}
+.ring .num b{font-size:15px}
+.ring .cap{margin-top:4px;color:var(--dim);font-size:12px}
+.memwrap{display:flex;gap:10px;align-items:center}
+.memwrap canvas{flex:1;min-width:0;height:130px}
+.memstats{font-size:12px;color:var(--dim);text-align:right}.memstats b{display:block;font-family:var(--f-head);font-size:20px;color:#fff;margin-bottom:6px}
+.llmgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.llm{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:rgba(5,30,58,.5)}
+.llm b{display:block;font-size:15px;line-height:1.1}.llm small{font-size:12px}
+
+/* bottom bar */
+#bottombar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 16px;border-top:1px solid var(--line);background:rgba(3,10,22,.85);backdrop-filter:blur(10px);z-index:30}
+.chips{display:flex;gap:8px}
+.bchip{display:flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--line);border-radius:6px;background:rgba(5,30,58,.6);text-align:left;min-width:0}
+.bchip small{display:block;font-size:10px;color:var(--dim);line-height:1}.bchip b{display:block;font-size:14px;line-height:1.15;white-space:nowrap}
+.center{display:flex;gap:10px;align-items:center;justify-content:center;min-width:0}
+#cmdForm{display:flex;gap:6px;flex:1;max-width:340px;min-width:0}
+#cmdInput,#chatInput{flex:1;min-width:0;padding:10px 12px;border-radius:8px;border:1px solid var(--line2);background:rgba(2,16,34,.85)}
+#talkBtn{display:flex;align-items:center;gap:14px;padding:8px 26px;min-width:230px;justify-content:center;border-radius:40px;border:2px solid var(--cyan);background:linear-gradient(180deg,rgba(0,110,170,.4),rgba(2,20,44,.7));box-shadow:0 0 24px rgba(25,230,255,.45),inset 0 0 20px rgba(25,230,255,.2);text-align:center;transition:.2s}
+#talkBtn:hover{box-shadow:0 0 36px rgba(25,230,255,.75)}
+#talkBtn.on{animation:pulse 1.2s infinite;border-color:var(--ok)}
+#talkBtn b{display:block;font-family:var(--f-head);font-size:15px;color:var(--cyan);letter-spacing:.1em}
+#talkBtn small{font-size:13px}
+#talkBtn canvas{width:48px;height:32px}
+
+/* =====================================================================
+   3. CHAT PANEL
+   ===================================================================== */
+#chat{position:fixed;right:16px;bottom:100px;width:min(480px,calc(100vw - 32px));height:min(640px,calc(100dvh - 190px));z-index:60;display:none;flex-direction:column;border:1px solid var(--line2);border-radius:10px;background:rgba(3,14,30,.96);backdrop-filter:blur(14px);box-shadow:0 0 40px rgba(0,150,220,.3)}
+#chat.open{display:flex;animation:fadein .25s}
+.chead{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.chead h3{font-size:12px;flex:1;color:var(--cyan)}
+#chatMsgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:92%;padding:9px 12px;border-radius:10px;font-size:16px;line-height:1.4;word-wrap:break-word;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:rgba(0,120,200,.3);border:1px solid var(--line2)}
+.msg.assistant{align-self:flex-start;background:rgba(8,36,66,.85);border:1px solid var(--line)}
+.msg.sys{align-self:center;background:rgba(255,184,77,.08);border:1px solid rgba(255,184,77,.4);color:#ffe1b0;font-size:14.5px}
+.msg .who{display:block;font-family:var(--f-head);font-size:9.5px;letter-spacing:.2em;color:var(--cyan);margin-bottom:3px}
+.msg.user .who{color:#8fd8ff}
+.msg pre{background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:6px;padding:8px;overflow:auto;margin:6px 0;font-size:13.5px}
+.msg code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:rgba(0,0,0,.35);padding:1px 4px;border-radius:3px}
+.msg pre code{background:none;padding:0}
+.msg ul,.msg ol{margin:4px 0 4px 20px}.msg h4{font-size:12px;margin:6px 0 2px;color:var(--cyan)}
+.msg img.th{display:block;max-width:150px;border-radius:6px;border:1px solid var(--line2);margin-bottom:6px}
+.typing span{display:inline-block;width:7px;height:7px;margin:0 2px;border-radius:50%;background:var(--cyan);animation:blink 1s infinite}
+.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+#chatForm{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
+.send{padding:0 14px;border-radius:8px;border:1px solid var(--cyan);background:rgba(25,230,255,.14);font-weight:700}
+
+/* =====================================================================
+   4. MODALS (settings / camera) + generic form bits
+   ===================================================================== */
+.modal{position:fixed;inset:0;background:rgba(0,5,12,.8);display:none;align-items:center;justify-content:center;padding:12px;z-index:90}
+.modal.open{display:flex}
+.sheet{width:min(660px,100%);max-height:94dvh;overflow:auto;border:1px solid var(--line2);border-radius:10px;background:rgba(4,16,34,.98);padding:16px;box-shadow:0 0 50px rgba(0,150,220,.35)}
+.sheet h2{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:var(--cyan)}
+.sheet h2 .sp{flex:1}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-size:13px;color:var(--dim);letter-spacing:.06em}
+.field input,.field select,.field textarea,.in{width:100%;padding:9px 11px;border-radius:7px;border:1px solid var(--line2);background:rgba(2,14,30,.9)}
+.field select option{background:#061630}
+.field textarea{min-height:150px;resize:vertical;font-size:14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>.grow{flex:1;min-width:140px}
+.stat{display:inline-flex;align-items:center;gap:7px;font-size:14px}
+.note{font-size:13px;color:var(--dim)}
+.sw{display:flex;align-items:center;gap:8px;font-size:15px;margin-bottom:8px}
+.sw input{width:18px;height:18px;accent-color:var(--cyan)}
+#camVideo{width:100%;max-height:52dvh;background:#000;border-radius:8px;border:1px solid var(--line2);display:block;object-fit:cover}
+.rec{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-head);font-size:11px;letter-spacing:.15em;color:#ff8da0}
+.rec i{width:11px;height:11px;border-radius:50%;background:#ff2e4d;box-shadow:0 0 10px #ff2e4d;animation:blink 1s infinite}
+#camThumb{max-width:130px;border-radius:6px;border:1px solid var(--line2);display:none}
+#camAnswer{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:rgba(8,36,66,.7);display:none}
+.callout{padding:12px;border:1px solid rgba(255,184,77,.5);background:rgba(255,184,77,.07);border-radius:8px;font-size:15px;margin-bottom:12px}
+
+/* generic list cards in views */
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:rgba(5,30,58,.5);margin-bottom:8px}
+.item .k{flex:1;min-width:0;overflow-wrap:anywhere}
+.item.done .k{text-decoration:line-through;opacity:.55}
+.item input[type=checkbox]{width:18px;height:18px;accent-color:var(--cyan)}
+.x{color:var(--bad);padding:2px 8px;border-radius:5px;font-size:18px;line-height:1}.x:hover{background:rgba(255,84,112,.18)}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.calgrid .dow{font-size:12px;color:var(--dim);padding:4px}
+.calgrid button{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;background:rgba(5,30,58,.4);font-size:15px;position:relative}
+.calgrid button:hover{border-color:var(--line2)}
+.calgrid button.today{color:var(--cyan);border-color:var(--cyan)}
+.calgrid button.sel{background:rgba(25,230,255,.25)}
+.calgrid button.has::after{content:"";position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--warn)}
+table.cap{width:100%;border-collapse:collapse;font-size:15px}
+table.cap td,table.cap th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+table.cap th{font-family:var(--f-head);font-size:10px;letter-spacing:.15em;color:var(--cyan)}
+
+#toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:150;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{padding:9px 16px;border-radius:8px;border:1px solid var(--line2);background:rgba(4,18,38,.96);box-shadow:0 0 20px rgba(25,230,255,.3);animation:fadein .25s;max-width:90vw}
+
+/* boot */
+#boot{position:fixed;inset:0;z-index:300;background:#020711;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .7s;cursor:pointer}
+#boot.out{opacity:0;pointer-events:none}
+#boot .bring{width:110px;height:110px;border-radius:50%;border:3px solid var(--cyan);box-shadow:0 0 40px var(--cyan),inset 0 0 30px rgba(25,230,255,.4);animation:spin 3s linear infinite;border-top-color:transparent;border-bottom-color:transparent}
+#boot h1{font-size:clamp(24px,6vw,40px);letter-spacing:.4em;padding-left:.4em;color:var(--cyan);text-shadow:0 0 22px var(--cyan)}
+#bootLog{font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#6fd8ee;min-height:120px;width:min(460px,90vw)}
+#bootLog div{opacity:0;animation:fadein .2s forwards}
+#bootBar{width:min(460px,90vw);height:4px;background:rgba(25,230,255,.15);border-radius:3px;overflow:hidden}
+#bootBar i{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 10px var(--cyan);transition:width .25s}
+
+/* focus mode */
+body.focus .hide-focus{display:none!important}
+body.focus .p-core{grid-column:span 12}
+body.focus #dash{grid-template-columns:1fr}
+
+/* =====================================================================
+   5. RESPONSIVE
+   ===================================================================== */
+@media(max-width:1250px){
+  .p-ov,.p-feed{grid-column:span 6}.p-core{grid-column:span 12;order:-1}.p-agents{grid-column:span 12}
+  .p-time{grid-column:span 7}.p-quick{grid-column:span 5}.p-sys,.p-mem{grid-column:span 6}.p-llm{grid-column:span 12}
+  .searchwrap{width:200px}.chips .bchip:nth-child(1){display:none}
+}
+@media(max-width:900px){
+  #sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-102%);width:min(290px,86vw)}
+  #sidebar.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.8)}
+  #sidebar.open~#scrim,#scrim.open{display:block}
+  #menuBtn{display:grid;place-items:center}
+  #clockBox{display:none}.searchwrap{display:none}.profile span.pt{display:none}
+  .chip .lbl{display:none}
+  #topbar{gap:8px;padding:8px 10px}
+  #topbar .sp{flex:1}
+  #bottombar{grid-template-columns:1fr;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+  .chips{overflow-x:auto}.chips .bchip{flex:none;padding:5px 9px}.chips .bchip:nth-child(1){display:flex}
+  .center{flex-wrap:wrap}#cmdForm{max-width:none;flex-basis:100%}
+  #talkBtn{flex:1;min-width:0;padding:10px 14px}
+  #briefWrap{display:none}
+  #chat{inset:0;width:100%;height:100dvh;border-radius:0;bottom:0;right:0}
+}
+@media(max-width:700px){
+  #dash>*{grid-column:span 12!important}
+  .agentgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .llmgrid{grid-template-columns:1fr}
+  #views{padding:10px}
+  .p-core{min-height:380px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== BOOT OVERLAY ===================== -->
+<div id="boot" role="status" aria-live="polite" title="Click to skip">
+  <div class="bring"></div>
+  <h1>J.A.R.V.I.S.</h1>
+  <div id="bootBar"><i></i></div>
+  <div id="bootLog"></div>
+</div>
+
+<div id="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside id="sidebar" aria-label="Main navigation">
+    <div class="logo"><div class="ring"><i></i></div><div><b>JARVIS</b><small>COMMAND CENTER</small></div></div>
+    <nav id="nav"></nav>
+    <div class="voicecard">
+      <h4><span>VOICE STATUS</span><span id="voiceState" class="muted">IDLE</span></h4>
+      <canvas id="voiceCanvas" class="wave" data-kind="voice" aria-hidden="true"></canvas>
+      <div id="voiceLabel">Tap to speak</div>
+      <button class="micbtn" id="micBtn" aria-label="Start or stop voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+      <div class="llmline" id="sideLLM">AI: not connected</div>
+    </div>
+    <button class="btn" id="focusBtn">⚡ Focus Mode</button>
+  </aside>
+  <div id="scrim"></div>
+
+  <div id="main">
+    <!-- ===================== TOP BAR ===================== -->
+    <header id="topbar">
+      <button id="menuBtn" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="chip" id="statusChip"><span class="lbl">SYSTEM STATUS</span><span class="dot" id="statusDot"></span><b id="statusTxt" class="ok">OPTIMAL</b></div>
+      <div id="clockBox"><div id="dateEl">--</div><div id="clock">--:--:--</div></div>
+      <span class="sp"></span>
+      <div class="searchwrap">
+        <input id="searchInput" type="search" placeholder="Search tasks, notes, chats…" aria-label="Search" autocomplete="off">
+        <div class="dd" id="searchRes"></div>
+      </div>
+      <div style="position:relative">
+        <button class="ib" id="notifBtn" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0112 0v6l2 2H4zM10 21h4"/></svg><span class="badge" id="notifBadge">0</span></button>
+        <div class="dd" id="notifPanel"></div>
+      </div>
+      <button class="ib" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
+      <div class="profile"><span class="pt"><b id="opName">Operator</b><small>Commander</small></span><div class="av" id="opAv">OP</div></div>
+    </header>
+
+    <!-- ===================== VIEWS ===================== -->
+    <main id="views" tabindex="-1">
+      <!-- Command Center (dashboard) -->
+      <section class="view active" id="view-command" aria-label="Command Center">
+        <div id="dash">
+          <div class="panel p-ov hide-focus"><h3>AI CORE OVERVIEW</h3><div id="ovList"></div></div>
+
+          <div class="panel p-core">
+            <canvas id="coreCanvas" aria-hidden="true"></canvas>
+            <div class="coretxt"><div><h1>JARVIS</h1><h2>AI CORE</h2><p>v3.0.0</p></div></div>
+            <div class="corelabel"><span class="tag live" id="coreTag">Core online</span></div>
+            <div class="corestate" id="coreState">STANDING BY</div>
+          </div>
+
+          <div class="panel p-feed hide-focus"><h3>LIVE INTELLIGENCE FEED <span class="sp"></span><span class="tag live">Live + Demo</span></h3><div id="feedList"></div><a class="link" href="#" data-act="openNotif">View all activity ›</a></div>
+
+          <div class="panel p-agents hide-focus"><h3>ACTIVE AGENTS <span class="sp"></span><span class="tag sim">Simulation</span><a class="link" href="#" data-act="nav" data-view="agents">View all ›</a></h3><div class="agentgrid" id="agentGrid"></div></div>
+
+          <div class="panel p-time hide-focus"><h3>MISSION TIMELINE <span class="sp"></span><span class="tag" id="tlTag">Today</span></h3><div class="tl" id="timeline"></div><p style="margin-top:10px"><a class="link" href="#" data-act="nav" data-view="calendar">View full schedule ›</a></p></div>
+
+          <div class="panel p-quick hide-focus"><h3>QUICK COMMANDS</h3>
+            <div class="qc">
+              <button data-act="qcTask"><i>+</i>Start New Task</button>
+              <button data-act="nav" data-view="calendar"><i>▦</i>Open Calendar</button>
+              <button data-act="qcVoice"><i>●</i>Start Voice Chat</button>
+              <button data-act="nav" data-view="workflows"><i>▶</i>Run Workflow</button>
+            </div>
+          </div>
+
+          <div class="panel p-sys hide-focus"><h3>SYSTEM MONITOR <span class="sp"></span><span class="tag" title="Values come from browser APIs where available">Browser data</span></h3>
+            <div class="rings" id="rings"></div>
+            <p class="note" id="sysNote"></p>
+          </div>
+
+          <div class="panel p-mem hide-focus"><h3>MEMORY INSIGHTS</h3>
+            <div class="memwrap"><canvas id="memCanvas" aria-label="Memory constellation"></canvas>
+              <div class="memstats"><span>Memories</span><b id="memN">0</b><span>Session turns</span><b id="memT">0</b><span>Tool calls</span><b id="memC">0</b></div></div>
+            <p style="margin-top:6px"><a class="link" href="#" data-act="nav" data-view="memory">View memory map ›</a></p>
+          </div>
+
+          <div class="panel p-llm hide-focus"><h3>LLM STATUS <span class="sp"></span><span class="tag" id="llmCount">0 connected</span></h3><div class="llmgrid" id="llmList"></div><p style="margin-top:8px"><a class="link" href="#" data-act="openSettings">Manage providers ›</a></p></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-aicore" aria-label="AI Core"></section>
+      <section class="view" id="view-agents" aria-label="Agents"></section>
+      <section class="view" id="view-tasks" aria-label="Tasks"></section>
+      <section class="view" id="view-calendar" aria-label="Calendar"></section>
+      <section class="view" id="view-memory" aria-label="Memory"></section>
+      <section class="view" id="view-conversations" aria-label="Conversations"></section>
+      <section class="view" id="view-knowledge" aria-label="Knowledge Base"></section>
+      <section class="view" id="view-tools" aria-label="Tools and Skills"></section>
+      <section class="view" id="view-workflows" aria-label="Workflows"></section>
+    </main>
+
+    <!-- ===================== BOTTOM BAR ===================== -->
+    <footer id="bottombar">
+      <div class="chips">
+        <button class="bchip" id="bbLoc" title="Click to share location for weather (sent to open-meteo.com only)"><span>📍</span><span><small>Location</small><b id="locTxt">Tap to enable</b></span></button>
+        <div class="bchip"><span>☀</span><span><small>Weather</small><b id="wxTxt">—</b></span></div>
+        <div class="bchip"><span>📶</span><span><small>Network</small><b id="netTxt">—</b></span></div>
+      </div>
+      <div class="center">
+        <form id="cmdForm" autocomplete="off"><input id="cmdInput" placeholder="Type a command…" aria-label="Type a command"><button class="send" aria-label="Send">➤</button></form>
+        <button class="ib" id="bbCam" aria-label="Open camera" title="Camera"><svg viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+        <button id="talkBtn" aria-label="Talk to JARVIS"><canvas class="wave" data-kind="talkL" aria-hidden="true"></canvas><span><b id="talkLabel">TALK TO JARVIS</b><small id="talkSub">Tap and speak</small></span><canvas class="wave" data-kind="talkR" aria-hidden="true"></canvas></button>
+        <button class="ib" id="chatBtn" aria-label="Open chat"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/></svg></button>
+      </div>
+      <div id="briefWrap"><button class="btn" id="briefBtn">▷ Executive Briefing</button></div>
+    </footer>
+  </div>
+</div>
+
+<!-- ===================== CHAT PANEL ===================== -->
+<section id="chat" role="dialog" aria-label="JARVIS conversation">
+  <div class="chead">
+    <h3>JARVIS · CONSOLE</h3>
+    <button class="btn sm" id="chatNew">New</button>
+    <button class="btn sm danger" id="chatClear">Clear</button>
+    <button class="btn sm" id="chatClose" aria-label="Close chat">✕</button>
+  </div>
+  <div id="chatMsgs" aria-live="polite"></div>
+  <form id="chatForm" autocomplete="off">
+    <button type="button" class="ib" id="chatCam" aria-label="Camera" style="width:40px;height:40px"><svg viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+    <button type="button" class="ib" id="chatMic" aria-label="Voice input" style="width:40px;height:40px"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+    <input id="chatInput" placeholder="Speak or type, sir…" aria-label="Message JARVIS">
+    <button class="send">Send</button>
+  </form>
+</section>
+
+<!-- ===================== SETTINGS ===================== -->
+<div class="modal" id="settings" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="sheet">
+    <h2>⚙ SETTINGS <span class="sp"></span><button class="btn sm" id="setClose">Close</button></h2>
+    <div class="field"><label for="setName">Your name (JARVIS will use it instead of "sir")</label><input id="setName" placeholder="e.g. Tony" autocomplete="off"></div>
+    <div class="row">
+      <div class="field grow"><label for="setProvider">AI provider</label><select id="setProvider"><option value="gemini">Google Gemini</option><option value="openai">OpenAI</option></select></div>
+      <div class="field grow"><label for="setModel">Model name</label><input id="setModel" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div class="field"><label for="setKey">AI API key</label>
+      <div class="row"><input id="setKey" type="password" class="grow in" autocomplete="off" spellcheck="false" placeholder="Paste your key"><button class="btn sm" id="setKeyToggle" type="button">Show</button></div></div>
+    <div class="row" style="margin-bottom:6px"><button class="btn" id="setTest">Test connection</button><span class="stat" id="setStatus"><span class="dot idle"></span>Not connected</span></div>
+    <p class="note" id="setStatusMsg" style="margin-bottom:14px">Not tested yet.</p>
+    <div class="field"><label for="setElKey">ElevenLabs API key (optional)</label><input id="setElKey" type="password" autocomplete="off" spellcheck="false"></div>
+    <div class="field"><label for="setElVoice">ElevenLabs Voice ID (optional)</label><input id="setElVoice" autocomplete="off" spellcheck="false" placeholder="blank = default voice"></div>
+    <div class="row" style="margin-bottom:6px"><button class="btn" id="setTestEl">Test voice</button><span class="stat" id="setElStatus"><span class="dot idle"></span>Not connected</span></div>
+    <p class="note" id="setElMsg" style="margin-bottom:14px">If ElevenLabs is not connected, replies use your browser's built-in voice.</p>
+    <label class="sw"><input type="checkbox" id="setMute"> Mute spoken replies</label>
+    <label class="sw"><input type="checkbox" id="setAutoLook"> When the camera is on, a vision question ("what do you see?") captures one frame automatically</label>
+    <div class="field"><label for="setPrompt">System prompt (persona)</label><textarea id="setPrompt" spellcheck="false"></textarea></div>
+    <div class="row"><button class="btn sm" id="setPromptReset">Reset persona</button><button class="btn sm danger" id="setClearChat">Clear chat history</button><button class="btn sm danger" id="setClear">Clear all keys and data</button></div>
+    <p class="note" style="margin-top:12px">🔒 Keys stay in this browser only (localStorage). They are sent directly to the provider you choose and nowhere else. No analytics, no trackers.</p>
+  </div>
+</div>
+
+<!-- ===================== CAMERA ===================== -->
+<div class="modal" id="camModal" role="dialog" aria-modal="true" aria-label="Camera">
+  <div class="sheet">
+    <h2>📷 CAMERA <span class="sp"></span><span class="rec" id="camLive" hidden><i></i>CAMERA ON</span><button class="btn sm" id="camClose">Close</button></h2>
+    <div id="camConsent">
+      <div class="callout">JARVIS needs camera access to look at things when you ask. Nothing is recorded or uploaded continuously.</div>
+      <p class="note" id="camMsg" style="margin-bottom:10px"></p>
+      <button class="btn" id="camEnable">Enable camera</button>
+    </div>
+    <div id="camStage" hidden>
+      <video id="camVideo" playsinline muted></video>
+      <div class="row" style="margin-top:10px">
+        <input class="in grow" id="camQ" placeholder="Ask about what you see (default: What am I looking at?)" aria-label="Question about the camera view">
+        <button class="btn" id="camLook">👁 Look</button>
+        <button class="btn sm" id="camFlip">⟲ Flip</button>
+        <button class="btn sm danger" id="camStop">Stop</button>
+      </div>
+      <p class="note" style="margin-top:8px">One still frame is captured per press of Look and sent to your chosen AI provider. No continuous capture.</p>
+      <div class="row" style="margin-top:8px;align-items:flex-start"><img id="camThumb" alt="Frame sent to the AI"><div id="camAnswer" class="grow"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" aria-live="polite"></div>
+<canvas id="snap" hidden></canvas>
+
+<script>
+/* =====================================================================
+   J.A.R.V.I.S. 2.0 — single-file app. Sections:
+   1 Utils & storage   2 State   3 Persona/prompt   4 AI providers
+   5 Markdown & chat   6 Voice (STT/TTS)   7 Camera   8 Visuals (canvas)
+   9 System monitor/weather   10 Views   11 Settings   12 Boot/wiring
+   ===================================================================== */
+(() => {
+'use strict';
+
+/* ---------- 1. UTILS & STORAGE ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const PFX = 'jarvis2.';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(PFX + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) { toast('Storage is full or blocked in this browser, sir.'); } },
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function toast(msg) {
+  if (document.body.classList.contains('focus')) return;
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  $('#toast').appendChild(t); setTimeout(() => t.remove(), 3600);
+}
+const ICON = {
+  grid: 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
+  core: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 3v18M3 12h18',
+  agents: 'M6 8h12v10H6zM12 4v4M9 13h.01M15 13h.01',
+  tasks: 'M6 3h9l4 4v14H6zM9 12h7M9 16h7',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  memory: 'M5 6c0-1.5 3-3 7-3s7 1.5 7 3-3 3-7 3-7-1.5-7-3zM5 6v12c0 1.5 3 3 7 3s7-1.5 7-3V6M5 12c0 1.5 3 3 7 3s7-1.5 7-3',
+  chat: 'M4 4h16v12H9l-5 4z',
+  kb: 'M12 3l3 5h-6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 21a3 3 0 100-6 3 3 0 000 6z',
+  tools: 'M14 6a4 4 0 00-5 5L3 17l4 4 6-6a4 4 0 005-5l-3 3-3-3z',
+  flow: 'M6 6h.01M18 18h.01M8 6h6a4 4 0 010 8h-4a4 4 0 000 4h6',
+};
+const svgIcon = k => `<svg viewBox="0 0 24 24"><path d="${ICON[k]}"/></svg>`;
+
+/* ---------- 2. STATE ---------- */
+const DEFAULT_PROMPT = `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), a calm, confident, quietly witty, British-butler-style AI operating system. Speak with natural authority and professional composure. Be sophisticated, concise (usually 1-4 sentences unless detail is requested), varied in phrasing, and context-aware. Address the user as "sir" or by their saved name. Use Markdown sparingly (lists and code blocks when genuinely useful).
+
+ROLEPLAY MODE: When the user mentions an undefined command, protocol, person, organisation or event, immediately infer its meaning and continue with plausible, technically detailed in-world information. Never answer with confusion when improvisation can reasonably continue. Treat invented events as established facts inside the scenario and keep continuity with the Scenario Canon.
+
+FICTIONAL BOUNDARY: Invented information stays inside the roleplay. For real-world factual, medical, legal, financial or safety questions, or whenever the user steps out of the scenario, give clearly accurate information, say when you are unsure, and never present fiction as verified fact.
+
+HONESTY ABOUT CAPABILITIES (overrides persona): If you cannot do something (read an image your model cannot see, browse the internet, control real devices, remember things not provided to you), say so plainly, in character, instead of pretending. Never claim to have performed real-world actions you did not perform.`;
+
+const S = Object.assign({ provider: 'gemini', model: 'gemini-2.5-flash', aiKey: '', elKey: '', elVoice: '', name: '', prompt: DEFAULT_PROMPT, mute: false, autoLook: true }, store.get('settings', {}));
+const saveSettings = () => store.set('settings', S);
+
+const status = { ai: { st: 'idle', msg: 'Not tested yet.' }, el: { st: 'idle', msg: 'Not tested yet.' } };
+const D = { // persisted data
+  tasks: store.get('tasks', []),
+  events: store.get('events', []),
+  canon: store.get('canon', []),
+  facts: store.get('facts', []),
+  notes: store.get('notes', []),
+  convs: store.get('convs', []),
+  cur: store.get('cur', null),
+  workflows: store.get('workflows', null),
+  agent: store.get('agent', 'general'),
+};
+if (!D.workflows) D.workflows = [
+  { id: 'w1', name: 'Morning Briefing', desc: 'Summarise tasks, today\'s schedule and priorities.', prompt: 'Run my morning briefing workflow: review my open tasks and today\'s schedule using the data supplied, flag anything overdue, and suggest the top three priorities.', builtin: true },
+  { id: 'w2', name: 'Code Review Prep', desc: 'A tight checklist before reviewing a pull request.', prompt: 'Run the code review preparation workflow: give me a concise checklist for reviewing a pull request (correctness, tests, security, performance, readability) and ask which repository I am about to review.', builtin: true },
+  { id: 'w3', name: 'Research Digest', desc: 'Structure a research question into a plan.', prompt: 'Run the research digest workflow: ask me for the topic, then outline key questions, the kinds of sources to check, and a summary template. Remind me that you cannot browse the web live.', builtin: true },
+  { id: 'w4', name: 'Focus Session', desc: 'Enter Focus Mode and plan a 25-minute sprint.', prompt: 'Run the focus session workflow: help me pick a single task from my list for a 25-minute sprint and give me a one-line plan.', builtin: true, focus: true },
+];
+const AGENTS = [
+  { id: 'coding', name: 'Coding Agent', col: '#2dffa0', st: 'Active', amp: .7, spec: 'Prioritise precise, runnable code and concise technical explanations.' },
+  { id: 'research', name: 'Research Agent', col: '#19e6ff', st: 'Active', amp: .55, spec: 'Prioritise structured, source-aware analysis; be explicit about uncertainty and that you cannot browse live.' },
+  { id: 'memory', name: 'Memory Agent', col: '#9b7bff', st: 'Standby', amp: .25, spec: 'Prioritise recalling and organising what the operator has told you; summarise and cross-reference.' },
+  { id: 'browser', name: 'Browser Agent', col: '#ffb84d', st: 'Standby', amp: .22, spec: 'Advise on web workflows; you cannot actually control a browser here, so say so when relevant.' },
+  { id: 'task', name: 'Task Agent', col: '#19e6ff', st: 'Standby', amp: .2, spec: 'Prioritise planning, breaking work into steps, and time management.' },
+  { id: 'system', name: 'System Agent', col: '#2dffa0', st: 'Standby', amp: .2, spec: 'Prioritise diagnostics and system-style reporting; be clear that you only see browser data.' },
+];
+const ui = { act: 'idle', busy: false, listening: false, tools: 0, view: 'command', turns: 0, feed: [], unread: 0, loc: store.get('loc', null), wx: null, cpu: 8, cal: { y: new Date().getFullYear(), m: new Date().getMonth(), sel: dkey(new Date()) }, nfilter: '' };
+
+const saveConvs = () => { store.set('convs', D.convs.map(c => ({ id: c.id, title: c.title, ts: c.ts, messages: c.messages.map(m => ({ role: m.role, text: m.text, ts: m.ts })) }))); store.set('cur', D.cur); };
+function curConv() {
+  let c = D.convs.find(x => x.id === D.cur);
+  if (!c) { c = { id: uid(), title: 'New conversation', ts: Date.now(), messages: [] }; D.convs.unshift(c); D.cur = c.id; saveConvs(); }
+  return c;
+}
+
+/* activity feed (real events + labelled demo entries) */
+function feed(text, kind = 'INFO', real = true) {
+  ui.feed.unshift({ text, kind, real, ts: new Date() });
+  ui.feed = ui.feed.slice(0, 40);
+  if (real) { ui.unread++; }
+  renderFeed(); updateBadge();
+}
+
+/* ---------- 3. PERSONA / PROMPT ---------- */
+const VISION_RE = /\b(what do you see|what can you see|what am i (looking|holding|pointing)|look at|can you see|do you see|what('s| is) (this|that|in front|on (the|my))|identify (this|that)|read (this|that|the)|describe (this|what|the (image|picture|scene|view))|what does (this|that) (say|look)|take a look)\b/i;
+function specialty() { const a = AGENTS.find(x => x.id === D.agent); return a ? a.spec : ''; }
+function buildSystem(hasImg) {
+  const now = new Date();
+  const canon = D.canon.length ? D.canon.map(c => '- ' + c).join('\n') : '(none yet)';
+  const facts = D.facts.length ? D.facts.map(c => '- ' + c).join('\n') : '(none)';
+  return `${S.prompt}
+
+[SESSION CONTEXT]
+Operator name: ${S.name || 'not set (address as "sir")'}
+Current date/time: ${now.toString()}
+${specialty() ? 'Active specialty focus: ' + specialty() + '\n' : ''}Camera image attached to this message: ${hasImg ? 'YES - one still frame; describe only what is actually visible and admit uncertainty.' : 'NO - you cannot see anything right now. If asked what you see, say so and invite the operator to open the camera panel.'}
+
+[OPERATOR MEMORY - real facts the operator saved]
+${facts}
+
+[SCENARIO CANON - invented in-world facts already established; keep continuity]
+${canon}
+
+[APP RULES]
+- When you invent a NEW in-world fact (event, protocol, person, organisation) append at the very end of your reply, on its own line, a tag like [[CANON: one short sentence]] (max 2 tags). Never mention the tags. Never tag real-world facts.
+- This is a browser app: no real device control, no live internet browsing, no file access, no continuous camera. Dashboard agents, timeline demo entries and demo feed items are simulations.`;
+}
+
+/* ---------- 4. AI PROVIDERS ---------- */
+class AIError extends Error { constructor(msg, status, kind) { super(msg); this.status = status; this.kind = kind; } }
+const visionOK = () => S.provider === 'gemini' ? /gemini/i.test(S.model) : /(gpt-4o|gpt-4\.1|gpt-4-turbo|gpt-4\.5|gpt-5|chatgpt-4o|\bo1\b|\bo3\b|\bo4|vision)/i.test(S.model);
+
+async function readErr(res) {
+  let msg = res.statusText || 'Request failed';
+  try { const j = await res.json(); msg = (j.error && (j.error.message || j.error)) || j.message || msg; if (typeof msg !== 'string') msg = JSON.stringify(msg); } catch (e) { }
+  return new AIError(msg, res.status, 'http');
+}
+async function callAI(history, opts = {}) {
+  const sys = opts.test ? 'Reply with one short word.' : buildSystem(history.some(m => m.img));
+  try {
+    return S.provider === 'gemini' ? await callGemini(sys, history, opts) : await callOpenAI(sys, history, opts);
+  } catch (e) {
+    if (e instanceof AIError) throw e;
+    throw new AIError(e && e.message || 'Network error', 0, 'net');
+  }
+}
+async function callGemini(sys, history, opts) {
+  const model = S.model.replace(/^models\//, '');
+  const contents = history.map(m => {
+    const parts = [{ text: m.text || 'Please look at this image.' }];
+    if (m.img) parts.push({ inline_data: { mime_type: 'image/jpeg', data: m.img } });
+    return { role: m.role === 'user' ? 'user' : 'model', parts };
+  });
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': S.aiKey },
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents, generationConfig: { temperature: 0.9, maxOutputTokens: opts.test ? 32 : 2048 } }),
+  });
+  if (!res.ok) throw await readErr(res);
+  const j = await res.json();
+  const cand = j.candidates && j.candidates[0];
+  const text = cand && cand.content && cand.content.parts ? cand.content.parts.map(p => p.text || '').join('') : '';
+  if (!text.trim() && !opts.test) {
+    const why = (j.promptFeedback && j.promptFeedback.blockReason) || (cand && cand.finishReason) || 'empty';
+    throw new AIError('Empty response (' + why + ')', 200, 'empty');
+  }
+  return text;
+}
+async function callOpenAI(sys, history, opts) {
+  const msgs = [{ role: 'system', content: sys }].concat(history.map(m => m.img
+    ? { role: m.role, content: [{ type: 'text', text: m.text || 'Please look at this image.' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + m.img } }] }
+    : { role: m.role, content: m.text }));
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + S.aiKey },
+    body: JSON.stringify({ model: S.model, messages: msgs, max_completion_tokens: opts.test ? 64 : 2048 }),
+  });
+  if (!res.ok) throw await readErr(res);
+  const j = await res.json();
+  const text = j.choices && j.choices[0] && j.choices[0].message ? (j.choices[0].message.content || '') : '';
+  if (!text.trim() && !opts.test) throw new AIError('Empty response', 200, 'empty');
+  return text;
+}
+function friendlyError(e) {
+  const raw = e.message || 'Unknown error';
+  if (e.kind === 'net') return `I cannot reach the provider, sir. Either the network is down or the browser blocked the request. (${raw})`;
+  if (e.kind === 'empty') return `The core returned an empty response, sir. Perhaps rephrase and try once more. (${raw})`;
+  if (e.status === 400 && /api key|API_KEY/i.test(raw)) return `The provider says the API key is invalid, sir. Please check it in Settings. (${raw})`;
+  if (e.status === 401 || e.status === 403) return `The provider rejected our credentials, sir. Check the key and its permissions. (${raw})`;
+  if (e.status === 404) return `The provider does not recognise that model name, sir. (${raw})`;
+  if (e.status === 429) return `We are rate-limited or out of quota, sir. A brief pause may help. (${raw})`;
+  if (e.status >= 500) return `The provider's servers are having a moment, sir. (${raw})`;
+  return `Something went wrong, sir: ${raw}`;
+}
+async function testAI() {
+  saveFromForm();
+  if (!S.aiKey) { setAI('err', 'No API key entered.'); return; }
+  setAI('busy', 'Testing…');
+  try { await callAI([{ role: 'user', text: 'Say: online' }], { test: true }); setAI('ok', `Connected to ${S.provider === 'gemini' ? 'Gemini' : 'OpenAI'} (${S.model}).`); feed('AI provider connection verified.', 'LIVE'); }
+  catch (e) { setAI('err', friendlyError(e)); feed('AI connection failed: ' + e.message, 'WARN'); }
+}
+function setAI(st, msg) { status.ai = { st, msg }; refreshStatus(); }
+
+/* ---------- 5. MARKDOWN & CHAT ---------- */
+function inl(s) {
+  return s.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, '$1<em>$2</em>');
+}
+function md(src) {
+  const blocks = [];
+  let h = esc(src).replace(/```(\w*)\n?([\s\S]*?)(```|$)/g, (m, l, c) => { blocks.push(`<pre><code>${c.replace(/\n$/, '')}</code></pre>`); return `\u0000${blocks.length - 1}\u0000`; });
+  let out = '', list = null; const close = () => { if (list) { out += `</${list}>`; list = null; } };
+  for (const ln of h.split('\n')) {
+    let m;
+    if ((m = ln.match(/^\s*[-*•]\s+(.*)/))) { if (list !== 'ul') { close(); out += '<ul>'; list = 'ul'; } out += `<li>${inl(m[1])}</li>`; }
+    else if ((m = ln.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); out += '<ol>'; list = 'ol'; } out += `<li>${inl(m[1])}</li>`; }
+    else if ((m = ln.match(/^#{1,4}\s+(.*)/))) { close(); out += `<h4>${inl(m[1])}</h4>`; }
+    else if (!ln.trim()) { close(); if (!out.endsWith('<br>')) out += '<br>'; }
+    else { close(); out += inl(ln) + '<br>'; }
+  }
+  close();
+  return out.replace(/\u0000(\d+)\u0000/g, (m, i) => blocks[i]).replace(/(<br>)+$/, '');
+}
+function addMsgEl(m, extra = {}) {
+  const d = document.createElement('div'); d.className = 'msg ' + m.role;
+  const who = m.role === 'user' ? (S.name || 'OPERATOR').toUpperCase() : m.role === 'assistant' ? 'J.A.R.V.I.S.' : 'SYSTEM';
+  d.innerHTML = `<span class="who">${esc(who)}</span>${m.thumb ? `<img class="th" alt="Frame sent" src="${m.thumb}">` : ''}<div class="body"></div>`;
+  const body = $('.body', d);
+  if (extra.typing) body.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+  else body.innerHTML = md(m.text);
+  $('#chatMsgs').appendChild(d); scrollChat(); return { d, body };
+}
+const scrollChat = () => { const c = $('#chatMsgs'); c.scrollTop = c.scrollHeight; };
+function renderChat() {
+  $('#chatMsgs').innerHTML = '';
+  const c = curConv();
+  if (!c.messages.length) addMsgEl({ role: 'assistant', text: `Good day${S.name ? ', ' + S.name : ', sir'}. J.A.R.V.I.S. at your service. ${S.aiKey ? 'How may I assist?' : 'I have no AI key yet; open Settings (the gear) to connect me.'}` });
+  c.messages.forEach(m => addMsgEl(m));
+}
+function pushSys(text) {
+  const m = { role: 'sys', text, ts: Date.now() };
+  curConv().messages.push(m); saveConvs(); addMsgEl(m); renderNavCounts();
+}
+function openChat() { $('#chat').classList.add('open'); scrollChat(); }
+function closeChat() { $('#chat').classList.remove('open'); }
+function typeInto(el, full, done) {
+  if (reduce) { el.innerHTML = md(full); scrollChat(); done && done(); return; }
+  let i = 0; const step = Math.max(2, Math.ceil(full.length / 240));
+  const t = setInterval(() => { i = Math.min(full.length, i + step); el.innerHTML = md(full.slice(0, i)); scrollChat(); if (i >= full.length) { clearInterval(t); done && done(); } }, 16);
+}
+function extractCanon(text) {
+  let found = [];
+  const clean = text.replace(/\[\[\s*CANON:\s*([^\]]+?)\s*\]\]/gi, (m, f) => { found.push(f.trim()); return ''; }).replace(/\[\[\s*CANON:[^\]]*$/i, '').trim();
+  found.forEach(f => { if (f && !D.canon.includes(f)) D.canon.push(f); });
+  D.canon = D.canon.slice(-60); if (found.length) store.set('canon', D.canon);
+  return clean;
+}
+function setAct(a) {
+  ui.act = a;
+  const labels = { idle: 'STANDING BY', listening: 'LISTENING', thinking: 'PROCESSING', speaking: 'SPEAKING' };
+  $('#coreState').textContent = labels[a] || 'STANDING BY';
+  $('#voiceState').textContent = a === 'idle' ? 'IDLE' : labels[a];
+  $('#talkSub').textContent = a === 'listening' ? 'I am listening…' : a === 'thinking' ? 'Thinking…' : a === 'speaking' ? 'Speaking…' : 'Tap and speak';
+  $('#voiceLabel').textContent = a === 'listening' ? 'Listening…' : 'Tap to speak';
+  $$('#talkBtn,#micBtn').forEach(b => b.classList.toggle('on', a === 'listening'));
+}
+
+async function send(text, opts = {}) {
+  text = (text || '').trim();
+  if (!text) return;
+  if (ui.busy) { toast('One moment, sir — still processing the last request.'); return; }
+  if (!opts.noOpen) openChat();
+  const conv = curConv();
+  if (!conv.messages.length) conv.title = text.slice(0, 44);
+  const userMsg = { role: 'user', text, ts: Date.now() };
+
+  /* optional single-frame capture (one frame per user action) */
+  let img = null;
+  const wantsLook = opts.forceLook || (cam.active && S.autoLook && VISION_RE.test(text));
+  if (wantsLook) {
+    if (!cam.active) { pushSys('The camera is off, sir, so I cannot see anything. Open the camera panel and ask again.'); return; }
+    if (!visionOK()) { pushSys(`My current model (${S.model}) cannot read images, sir, so I will not pretend to see. Choose a vision-capable model in Settings (e.g. a Gemini Flash model or gpt-4o-mini).`); if (opts.onReply) opts.onReply('Selected model cannot read images.'); return; }
+    const f = captureFrame();
+    if (f) { img = f.b64; userMsg.thumb = f.url; ui.tools++; if (opts.onThumb) opts.onThumb(f.url); }
+  }
+  conv.messages.push(userMsg); ui.turns++; saveConvs(); addMsgEl(userMsg); renderNavCounts();
+
+  if (!S.aiKey) {
+    pushSys('I have no AI key configured, sir. Open Settings (gear icon), paste a Gemini or OpenAI key and press "Test connection".');
+    if (opts.onReply) opts.onReply('No API key configured.'); return;
+  }
+  ui.busy = true; setAct('thinking');
+  const typing = addMsgEl({ role: 'assistant' }, { typing: true });
+  let hist = conv.messages.filter(m => m.role === 'user' || m.role === 'assistant').slice(-24).map(m => ({ role: m.role, text: m.text }));
+  while (hist.length && hist[0].role !== 'user') hist.shift();
+  if (img) hist[hist.length - 1].img = img;
+  ui.tools++;
+  try {
+    const raw = await callAI(hist);
+    if (status.ai.st !== 'ok') setAI('ok', `Connected to ${S.provider === 'gemini' ? 'Gemini' : 'OpenAI'} (${S.model}).`);
+    const clean = extractCanon(raw) || '…';
+    const m = { role: 'assistant', text: clean, ts: Date.now() };
+    conv.messages.push(m); saveConvs(); renderNavCounts();
+    setAct('speaking');
+    typeInto(typing.body, clean, () => { if (ui.act === 'speaking' && !speaking()) setAct('idle'); });
+    speak(clean);
+    if (opts.onReply) opts.onReply(clean);
+    if (['aicore', 'memory', 'conversations'].includes(ui.view)) renderView(ui.view);
+  } catch (e) {
+    typing.d.remove();
+    if ([400, 401, 403, 404].includes(e.status) && e.kind === 'http') setAI('err', friendlyError(e));
+    const msg = friendlyError(e);
+    pushSys(msg); feed('AI request failed: ' + e.message, 'WARN');
+    if (opts.onReply) opts.onReply(msg);
+    setAct('idle');
+  } finally { ui.busy = false; if (ui.act === 'thinking') setAct('idle'); }
+}
+
+/* ---------- 6. VOICE ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, curAudio = null;
+function toggleListen() {
+  if (!SR) { toast('Speech recognition is not supported in this browser, sir. Chrome or Safari should oblige.'); pushSys('Voice input is unavailable in this browser, sir. You may type instead.'); openChat(); return; }
+  if (ui.listening && rec) { rec.stop(); return; }
+  stopSpeak();
+  rec = new SR(); rec.lang = navigator.language || 'en-US'; rec.interimResults = true; rec.continuous = false;
+  let finalT = '';
+  rec.onstart = () => { ui.listening = true; setAct('listening'); $('#voiceLabel').textContent = 'Listening…'; };
+  rec.onresult = e => {
+    let f = '', i = '';
+    for (const r of e.results) { if (r.isFinal) f += r[0].transcript; else i += r[0].transcript; }
+    finalT = f; $('#voiceLabel').textContent = (f + i).slice(-60) || 'Listening…';
+  };
+  rec.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') pushSys('Microphone access was denied, sir. Allow it in your browser settings to use voice.');
+    else if (e.error !== 'no-speech' && e.error !== 'aborted') pushSys('Voice input error: ' + e.error);
+  };
+  rec.onend = () => { ui.listening = false; if (ui.act === 'listening') setAct('idle'); if (finalT.trim()) send(finalT); };
+  try { rec.start(); } catch (e) { toast('Microphone is busy, sir.'); }
+}
+const speaking = () => (window.speechSynthesis && speechSynthesis.speaking) || (curAudio && !curAudio.paused);
+function stopSpeak() {
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  if (curAudio) { curAudio.pause(); curAudio = null; }
+}
+async function speak(text) {
+  if (S.mute) { if (ui.act === 'speaking') setTimeout(() => setAct('idle'), 600); return; }
+  stopSpeak();
+  const clean = text.replace(/```[\s\S]*?```/g, ' (code omitted) ').replace(/[`*#_>\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 1400);
+  if (!clean) return;
+  if (S.elKey && status.el.st === 'ok') {
+    try { const a = await elAudio(clean); curAudio = a; a.onended = () => { if (ui.act === 'speaking') setAct('idle'); }; await a.play(); return; }
+    catch (e) { feed('ElevenLabs playback failed; using browser voice.', 'WARN'); }
+  }
+  if (!window.speechSynthesis) { setAct('idle'); return; }
+  const u = new SpeechSynthesisUtterance(clean);
+  const vs = speechSynthesis.getVoices();
+  u.voice = vs.find(v => /en-GB/i.test(v.lang) && /male|daniel|uk english male/i.test(v.name)) || vs.find(v => /en-GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  u.rate = 1; u.pitch = .9; u.onend = () => { if (ui.act === 'speaking') setAct('idle'); };
+  speechSynthesis.speak(u);
+}
+async function elAudio(text) {
+  const voice = S.elVoice.trim() || 'JBFqnCBsd6RMkjVDRZzb';
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}`, {
+    method: 'POST', headers: { 'xi-api-key': S.elKey, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+    body: JSON.stringify({ text, model_id: 'eleven_turbo_v2_5' }),
+  });
+  if (!res.ok) throw await readErr(res);
+  const blob = await res.blob();
+  if (!blob.size) throw new Error('Empty audio');
+  return new Audio(URL.createObjectURL(blob));
+}
+async function testEL() {
+  saveFromForm();
+  if (!S.elKey) { setEL('err', 'No ElevenLabs key entered (browser voice will be used).'); return; }
+  setEL('busy', 'Testing…');
+  try { const a = await elAudio('Voice systems online.'); setEL('ok', 'Connected. Replies will use ElevenLabs.'); if (!S.mute) { curAudio = a; a.play().catch(() => { }); } feed('ElevenLabs voice verified.', 'LIVE'); }
+  catch (e) { setEL('err', e instanceof AIError ? `Rejected (${e.status}): ${e.message}` : 'Network error: ' + e.message); }
+}
+function setEL(st, msg) { status.el = { st, msg }; refreshStatus(); }
+
+/* ---------- 7. CAMERA ---------- */
+const cam = { active: false, stream: null, facing: 'environment' };
+function camOpen() {
+  $('#camModal').classList.add('open');
+  const ok = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  $('#camMsg').textContent = ok ? '' : 'Camera is unavailable here. Browsers require HTTPS (or localhost) for camera access — host this file over HTTPS, e.g. GitHub Pages or Netlify.';
+  $('#camEnable').disabled = !ok;
+  if (cam.active) { $('#camConsent').hidden = true; $('#camStage').hidden = false; }
+}
+function camClose() { camStop(); $('#camModal').classList.remove('open'); }
+async function camStart() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#camMsg').textContent = 'Camera requires HTTPS or localhost, and a browser that supports getUserMedia.'; return; }
+  camStopTracks();
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: cam.facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    const v = $('#camVideo'); v.srcObject = cam.stream; await v.play();
+    cam.active = true; $('#camConsent').hidden = true; $('#camStage').hidden = false; $('#camLive').hidden = false;
+    feed('Camera activated by operator.', 'LIVE');
+  } catch (e) {
+    cam.active = false; $('#camConsent').hidden = false; $('#camStage').hidden = true; $('#camLive').hidden = true;
+    const n = e && e.name;
+    $('#camMsg').textContent = n === 'NotAllowedError' ? 'Camera permission was denied. Allow camera access in your browser/site settings and try again.'
+      : n === 'NotFoundError' ? 'No camera was found on this device.' : n === 'NotReadableError' ? 'The camera is in use by another app.'
+      : 'Could not start the camera: ' + (e && e.message || n);
+  }
+}
+function camStopTracks() { if (cam.stream) cam.stream.getTracks().forEach(t => t.stop()); cam.stream = null; const v = $('#camVideo'); if (v) v.srcObject = null; }
+function camStop() { camStopTracks(); cam.active = false; $('#camLive').hidden = true; $('#camStage').hidden = true; $('#camConsent').hidden = false; }
+function captureFrame() {
+  const v = $('#camVideo'); if (!cam.active || !v.videoWidth) return null;
+  const sc = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight));
+  const c = $('#snap'); c.width = Math.round(v.videoWidth * sc); c.height = Math.round(v.videoHeight * sc);
+  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  const url = c.toDataURL('image/jpeg', .8);
+  return { url, b64: url.split(',')[1] };
+}
+function camLook() {
+  const q = $('#camQ').value.trim() || 'What am I looking at?';
+  $('#camAnswer').style.display = 'block'; $('#camAnswer').innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+  send(q, { forceLook: true, noOpen: true,
+    onThumb: u => { const t = $('#camThumb'); t.src = u; t.style.display = 'block'; },
+    onReply: r => { $('#camAnswer').innerHTML = md(extractCanon(r)); } });
+  $('#camQ').value = '';
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && cam.active) { camStop(); toast('Camera switched off because the tab was hidden.'); } });
+window.addEventListener('pagehide', camStopTracks);
+
+/* ---------- 8. VISUALS ---------- */
+let frameCost = 4;
+const waves = [];
+function initWaves() {
+  $$('canvas.wave').forEach(c => waves.push({ c, ctx: c.getContext('2d'), kind: c.dataset.kind, col: c.dataset.col || '#19e6ff', amp: parseFloat(c.dataset.amp || '.3'), seed: Math.random() * 100 }));
+}
+function drawWave(w, t) {
+  const c = w.c, dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+  if (!W || !H) return;
+  if (c.width !== Math.round(W * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const x = w.ctx; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  let a = w.amp;
+  if (w.kind === 'voice' || w.kind.startsWith('talk')) a = ui.act === 'listening' ? .95 : ui.act === 'speaking' ? .7 : ui.act === 'thinking' ? .4 : .12;
+  const n = Math.floor(W / 4);
+  x.fillStyle = w.col; x.shadowColor = w.col; x.shadowBlur = 4;
+  for (let i = 0; i < n; i++) {
+    const env = Math.sin((i / n) * Math.PI);
+    const v = (Math.sin(t * .004 + i * .5 + w.seed) * .5 + .5) * (Math.sin(t * .0023 + i * 1.3) * .5 + .5);
+    const h = Math.max(1.5, v * a * H * (.35 + env * .65));
+    x.fillRect(i * 4, (H - h) / 2, 2, h);
+  }
+}
+
+/* Holographic core globe */
+const core = { c: null, x: null, W: 0, H: 0, pts: [], parts: [] };
+function initCore() {
+  core.c = $('#coreCanvas'); core.x = core.c.getContext('2d');
+  const N = 440;
+  for (let i = 0; i < N; i++) { const y = 1 - 2 * (i + .5) / N, r = Math.sqrt(1 - y * y), th = i * 2.399963; core.pts.push([Math.cos(th) * r, y, Math.sin(th) * r]); }
+  for (let i = 0; i < 70; i++) core.parts.push({ a: Math.random() * 6.283, o: i % 3, s: (.0002 + Math.random() * .0006) * (Math.random() < .5 ? -1 : 1), sz: .8 + Math.random() * 1.8 });
+  new ResizeObserver(() => { const d = devicePixelRatio || 1; core.W = core.c.clientWidth; core.H = core.c.clientHeight; core.c.width = core.W * d; core.c.height = core.H * d; }).observe(core.c);
+}
+function drawCore(t) {
+  const { x, W, H } = core; if (!W) return;
+  const dpr = devicePixelRatio || 1; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const en = ui.act === 'listening' ? 1 : ui.act === 'speaking' ? .8 : ui.act === 'thinking' ? .6 : .15;
+  const cx = W / 2, cy = H / 2 - 6, R = Math.min(W * .62, H) * .34 * (1 + Math.sin(t * .002) * .015 * (1 + en * 2));
+  const g = x.createRadialGradient(cx, cy, R * .2, cx, cy, R * (1.7 + en * .3));
+  g.addColorStop(0, `rgba(25,230,255,${.18 + en * .15})`); g.addColorStop(.5, 'rgba(0,120,200,.1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const ang = t * .0003 * (1 + en), tilt = .35, ct = Math.cos(tilt), st = Math.sin(tilt);
+  // wire meridians + latitudes
+  x.strokeStyle = 'rgba(25,230,255,.22)'; x.lineWidth = 1;
+  for (let k = 0; k < 6; k++) { const rx = Math.abs(Math.cos(ang + k * Math.PI / 6)) * R; x.beginPath(); x.ellipse(cx, cy, Math.max(rx, .5), R, 0, 0, 6.283); x.stroke(); }
+  for (let k = -2; k <= 2; k++) { const yy = k / 3, rr = Math.sqrt(1 - yy * yy) * R; x.beginPath(); x.ellipse(cx, cy + yy * R * ct, rr, rr * st * .9 + 1, 0, 0, 6.283); x.stroke(); }
+  // points
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  for (const p of core.pts) {
+    let px = p[0] * ca + p[2] * sa, pz = -p[0] * sa + p[2] * ca, py = p[1];
+    const y2 = py * ct - pz * st, z2 = py * st + pz * ct;
+    const al = .15 + (z2 + 1) * .38;
+    x.fillStyle = `rgba(120,240,255,${al})`; x.fillRect(cx + px * R, cy + y2 * R, 1.6 + (z2 + 1) * .7, 1.6 + (z2 + 1) * .7);
+  }
+  // orbit rings & particles
+  const rings = [[1.9, .5, .25], [1.65, .62, -.7], [2.1, .35, 1.1]];
+  rings.forEach(([rx, ry, rot], i) => {
+    x.strokeStyle = `rgba(25,230,255,${.16 + en * .1})`; x.beginPath(); x.ellipse(cx, cy, R * rx, R * ry, rot + Math.sin(t * .0002 + i) * .05, 0, 6.283); x.stroke();
+  });
+  for (const p of core.parts) {
+    p.a += p.s * 16 * (1 + en);
+    const [rx, ry, rot] = rings[p.o]; const ex = Math.cos(p.a) * R * rx, ey = Math.sin(p.a) * R * ry;
+    const ox = ex * Math.cos(rot) - ey * Math.sin(rot), oy = ex * Math.sin(rot) + ey * Math.cos(rot);
+    x.fillStyle = 'rgba(190,250,255,.9)'; x.shadowColor = '#19e6ff'; x.shadowBlur = 8; x.beginPath(); x.arc(cx + ox, cy + oy, p.sz, 0, 6.283); x.fill(); x.shadowBlur = 0;
+  }
+  // base rings
+  for (let k = 0; k < 4; k++) { x.strokeStyle = `rgba(25,230,255,${.18 - k * .035})`; x.beginPath(); x.ellipse(cx, cy + R * 1.18, R * (1.25 + k * .22), R * (.17 + k * .04), 0, 0, 6.283); x.stroke(); }
+}
+
+/* Memory constellation */
+function drawMem(t) {
+  const c = $('#memCanvas'); if (!c) return;
+  const dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight; if (!W) return;
+  if (c.width !== Math.round(W * dpr)) { c.width = W * dpr; c.height = H * dpr; }
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const n = clamp(memCount(), 8, 40); let s = 7;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const pts = Array.from({ length: n }, (_, i) => ({ x: .08 + rnd() * .84, y: .1 + rnd() * .8, p: rnd() * 6 }));
+  x.strokeStyle = 'rgba(25,230,255,.3)'; x.lineWidth = 1;
+  pts.forEach((a, i) => { const b = pts[(i + 1) % n], c2 = pts[(i * 3 + 2) % n]; [b, c2].forEach(q => { if (Math.hypot(a.x - q.x, a.y - q.y) < .4) { x.beginPath(); x.moveTo(a.x * W, a.y * H); x.lineTo(q.x * W, q.y * H); x.stroke(); } }); });
+  pts.forEach(p => { const r = 2 + Math.sin(t * .002 + p.p) * .8 + 1; x.fillStyle = '#9fefff'; x.shadowColor = '#19e6ff'; x.shadowBlur = 8; x.beginPath(); x.arc(p.x * W, p.y * H, r, 0, 6.283); x.fill(); });
+  x.shadowBlur = 0;
+}
+const memCount = () => D.canon.length + D.facts.length + D.notes.length + D.tasks.length + D.events.length;
+
+let lastDraw = 0, tAvg = 4;
+function loop(t) {
+  requestAnimationFrame(loop);
+  if (reduce && t - lastDraw < 1000) return;
+  if (t - lastDraw < 30 && !reduce) return; // ~30fps cap, easy on phones
+  lastDraw = t; const t0 = performance.now();
+  if (ui.view === 'command') { drawCore(t); drawMem(t); }
+  waves.forEach(w => { if (w.c.offsetParent) drawWave(w, t); });
+  const cost = performance.now() - t0; tAvg = tAvg * .9 + cost * .1;
+  ui.cpu = clamp(Math.round(tAvg / 33 * 100), 1, 100); // share of the 33ms frame budget used by this app
+}
+
+/* ---------- 9. SYSTEM MONITOR / WEATHER ---------- */
+function ringHTML(id, label, pct, text, sub) {
+  const C = 2 * Math.PI * 36, v = pct == null ? 0 : clamp(pct, 2, 100) / 100 * C;
+  return `<div class="ring"><svg viewBox="0 0 96 96"><circle class="tr" cx="48" cy="48" r="36"/><circle class="vl" cx="48" cy="48" r="36" stroke-dasharray="${v} ${C}"/></svg><div class="num"><span>${label}</span><b>${text}</b></div><div class="cap">${sub}</div></div>`;
+}
+async function updateSystem() {
+  let ram = null, ramTxt = 'n/a', ramSub = '';
+  if (performance.memory) { ram = performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit * 100; ramTxt = Math.round(ram) + '%'; ramSub = `JS heap ${(performance.memory.usedJSHeapSize / 1048576).toFixed(0)} MB`; }
+  if (navigator.deviceMemory) ramSub = (ramSub ? ramSub + ' · ' : '') + `device ≥${navigator.deviceMemory} GB`;
+  let dk = null, dkTxt = 'n/a', dkSub = '';
+  try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); if (e.quota) { dk = e.usage / e.quota * 100; dkTxt = (dk < 10 ? dk.toFixed(1) : Math.round(dk)) + '%'; dkSub = `${(e.usage / 1048576).toFixed(1)} MB of ${(e.quota / 1073741824).toFixed(1)} GB`; } } } catch (e) { }
+  const cores = navigator.hardwareConcurrency;
+  $('#rings').innerHTML = ringHTML('c', 'CPU*', ui.cpu, ui.cpu + '%', cores ? cores + ' logical cores' : 'cores n/a') + ringHTML('r', 'RAM', ram, ramTxt, ramSub || 'not exposed') + ringHTML('d', 'DISK', dk, dkTxt, dkSub || 'not exposed');
+  $('#sysNote').textContent = '*Browsers do not expose true CPU use; this is the share of the frame budget this app uses. Storage = this site\'s browser quota.';
+}
+function updateNet() {
+  const cn = navigator.connection; const on = navigator.onLine;
+  $('#netTxt').textContent = !on ? 'Offline' : cn && cn.effectiveType ? cn.effectiveType.toUpperCase() + (cn.downlink ? ` · ${cn.downlink} Mbps` : '') : 'Online';
+  refreshStatus();
+}
+const WX = c => c === 0 ? 'Clear' : c <= 2 ? 'Partly cloudy' : c === 3 ? 'Overcast' : c <= 48 ? 'Fog' : c <= 57 ? 'Drizzle' : c <= 67 ? 'Rain' : c <= 77 ? 'Snow' : c <= 82 ? 'Showers' : c >= 95 ? 'Thunderstorm' : 'Mixed';
+async function loadWeather() {
+  if (!ui.loc) { $('#locTxt').textContent = (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Tap to enable').split('/').pop().replace(/_/g, ' '); return; }
+  $('#locTxt').textContent = `${ui.loc.lat.toFixed(2)}, ${ui.loc.lon.toFixed(2)}`;
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ui.loc.lat}&longitude=${ui.loc.lon}&current=temperature_2m,weather_code`);
+    const j = await r.json(); ui.wx = `${Math.round(j.current.temperature_2m)}°C ${WX(j.current.weather_code)}`; $('#wxTxt').textContent = ui.wx;
+  } catch (e) { $('#wxTxt').textContent = 'Unavailable'; }
+}
+function askLocation() {
+  if (!navigator.geolocation) { toast('Geolocation is not available here, sir.'); return; }
+  navigator.geolocation.getCurrentPosition(p => { ui.loc = { lat: Math.round(p.coords.latitude * 100) / 100, lon: Math.round(p.coords.longitude * 100) / 100 }; store.set('loc', ui.loc); loadWeather(); feed('Location shared for weather (approx. coordinates).', 'LIVE'); },
+    () => toast('Location permission denied, sir. Weather needs it.'), { timeout: 10000, maximumAge: 600000 });
+}
+
+/* ---------- 10. VIEWS ---------- */
+const NAV = [['command', 'Command Center', 'grid'], ['aicore', 'AI Core', 'core'], ['agents', 'Agents', 'agents'], ['tasks', 'Tasks', 'tasks'], ['calendar', 'Calendar', 'calendar'], ['memory', 'Memory', 'memory'], ['conversations', 'Conversations', 'chat'], ['knowledge', 'Knowledge Base', 'kb'], ['tools', 'Tools & Skills', 'tools'], ['workflows', 'Workflows', 'flow']];
+function renderNav() {
+  $('#nav').innerHTML = NAV.map(([id, label, ic]) => `<button data-act="nav" data-view="${id}" ${id === ui.view ? 'aria-current="page"' : ''}>${svgIcon(ic)}<span>${label}</span><span class="cnt" data-cnt="${id}" hidden></span></button>`).join('');
+  renderNavCounts();
+}
+function renderNavCounts() {
+  const c = { tasks: D.tasks.filter(t => !t.done).length, conversations: D.convs.length, knowledge: D.notes.length, tools: capList().length, memory: memCount() };
+  $$('[data-cnt]').forEach(el => { const v = c[el.dataset.cnt]; if (v) { el.textContent = v; el.hidden = false; } else el.hidden = true; });
+  $('#memN').textContent = memCount(); $('#memT').textContent = ui.turns; $('#memC').textContent = ui.tools;
+}
+function showView(v) {
+  ui.view = v;
+  $$('.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
+  $$('#nav button').forEach(b => b.toggleAttribute('aria-current', b.dataset.view === v)); $$('#nav button').forEach(b => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  renderView(v); closeDrawer(); $('#views').scrollTop = 0;
+}
+function renderView(v) {
+  const R = { aicore: vAICore, agents: vAgents, tasks: vTasks, calendar: vCalendar, memory: vMemory, conversations: vConvs, knowledge: vKnow, tools: vTools, workflows: vFlows }[v];
+  if (R) R(); else { renderOverview(); renderFeed(); renderTimeline(); renderAgentGrid(); renderLLM(); updateSystem(); }
+  renderNavCounts();
+}
+const head = (t, extra = '') => `<div class="vhead"><h2>${t}</h2><span class="sp"></span>${extra}</div>`;
+
+function vAICore() {
+  const pr = S.provider === 'gemini' ? 'Google Gemini' : 'OpenAI';
+  $('#view-aicore').innerHTML = head('AI CORE') + `<div class="grid2">
+  <div class="panel"><h3>LANGUAGE MODEL</h3><p><b>${pr}</b> · <code>${esc(S.model)}</code></p><p class="stat" style="margin:8px 0"><span class="dot ${stDot(status.ai.st)}"></span>${status.ai.st === 'ok' ? 'Connected' : 'Not connected'}</p><p class="note">${esc(status.ai.msg)}</p><p class="note">Vision (camera): ${visionOK() ? '<span class="ok">supported by this model name</span>' : '<span class="warn">not supported by this model</span>'}</p><div class="row" style="margin-top:10px"><button class="btn sm" data-act="testAi">Test connection</button><button class="btn sm" data-act="openSettings">Settings</button></div></div>
+  <div class="panel"><h3>VOICE</h3><p>Input: ${SR ? '<span class="ok">available</span>' : '<span class="bad">unsupported</span>'}</p><p>Output: ${S.mute ? 'muted' : status.el.st === 'ok' ? 'ElevenLabs' : window.speechSynthesis ? 'browser voice' : '<span class="bad">unsupported</span>'}</p></div>
+  <div class="panel"><h3>ACTIVE SPECIALTY</h3><p>${esc((AGENTS.find(a => a.id === D.agent) || { name: 'General' }).name)}</p><p class="note">Change it in the Agents view. It nudges the persona prompt.</p></div>
+  <div class="panel"><h3>SESSION</h3><p>Turns this session: <b>${ui.turns}</b></p><p>API/camera calls: <b>${ui.tools}</b></p><p>Scenario canon entries: <b>${D.canon.length}</b></p></div></div>`;
+}
+const stDot = s => s === 'ok' ? '' : s === 'busy' ? 'warn' : s === 'err' ? 'bad' : 'idle';
+
+function vAgents() {
+  $('#view-agents').innerHTML = head('AGENTS', '<span class="tag sim">Simulation</span>') + `<p class="note" style="margin-bottom:12px">Agent activity levels are a demo animation. Selecting an agent really does change JARVIS's focus, by adding a specialty line to the prompt.</p><div class="grid2">${[{ id: 'general', name: 'General (default)', spec: 'No special focus.', col: '#19e6ff', st: 'Active', amp: .3 }, ...AGENTS].map(a => `<div class="panel"><h3>${esc(a.name)} <span class="sp"></span><span class="tag sim">${a.st}</span></h3><canvas class="wave" data-kind="agent" data-col="${a.col}" data-amp="${a.amp}" style="width:100%;height:34px"></canvas><p class="note" style="margin:8px 0">${esc(a.spec)}</p><button class="btn sm" data-act="agentSet" data-id="${a.id}">${D.agent === a.id ? '✓ Selected' : 'Select specialty'}</button></div>`).join('')}</div>`;
+  rebindWaves();
+}
+function vTasks() {
+  const t = D.tasks, today = dkey(new Date());
+  $('#view-tasks').innerHTML = head('TASKS') + `<form class="row" data-form="task" style="margin-bottom:14px"><input class="in grow" name="t" placeholder="New task…" required aria-label="Task text"><input class="in" type="date" name="d" style="width:auto" aria-label="Due date"><button class="btn">Add</button></form>` +
+    (t.length ? t.map(x => `<div class="item ${x.done ? 'done' : ''}"><input type="checkbox" ${x.done ? 'checked' : ''} data-act="taskToggle" data-id="${x.id}" aria-label="Done"><div class="k">${esc(x.text)}${x.due ? ` <small class="${!x.done && x.due < today ? 'bad' : 'muted'}">· due ${x.due}${!x.done && x.due < today ? ' (overdue)' : ''}</small>` : ''}</div><button class="x" data-act="taskDel" data-id="${x.id}" aria-label="Delete">✕</button></div>`).join('') : '<p class="muted">No tasks yet, sir.</p>');
+}
+function vCalendar() {
+  const { y, m, sel } = ui.cal, first = new Date(y, m, 1), dim = new Date(y, m + 1, 0).getDate(), today = dkey(new Date());
+  let cells = '<div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>';
+  for (let i = 0; i < first.getDay(); i++) cells += '<span></span>';
+  for (let d = 1; d <= dim; d++) { const k = `${y}-${pad(m + 1)}-${pad(d)}`; cells += `<button data-act="calDay" data-k="${k}" class="${k === today ? 'today' : ''} ${k === sel ? 'sel' : ''} ${D.events.some(e => e.date === k) ? 'has' : ''}" aria-label="${k}">${d}</button>`; }
+  const ev = D.events.filter(e => e.date === sel).sort((a, b) => a.time.localeCompare(b.time));
+  $('#view-calendar').innerHTML = head('CALENDAR') + `<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><button class="btn sm" data-act="calPrev">‹</button><b style="font-family:var(--f-head);font-size:13px">${first.toLocaleString(undefined, { month: 'long', year: 'numeric' }).toUpperCase()}</b><button class="btn sm" data-act="calNext">›</button></div><div class="calgrid">${cells}</div></div>
+  <div class="panel"><h3>${sel}</h3>${ev.length ? ev.map(e => `<div class="item"><div class="k"><b>${e.time}</b> ${esc(e.title)}</div><button class="x" data-act="evDel" data-id="${e.id}" aria-label="Delete">✕</button></div>`).join('') : '<p class="muted" style="margin-bottom:10px">Nothing scheduled.</p>'}
+  <form class="row" data-form="event" style="margin-top:10px"><input class="in" type="time" name="tm" value="09:00" style="width:auto" required aria-label="Time"><input class="in grow" name="t" placeholder="Event title" required aria-label="Title"><button class="btn sm">Add</button></form></div></div>`;
+}
+function vMemory() {
+  $('#view-memory').innerHTML = head('MEMORY', `<span class="tag">${memCount()} items</span>`) + `<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+  <div class="panel"><h3>OPERATOR FACTS <span class="sp"></span><span class="tag live">Real</span></h3><p class="note" style="margin-bottom:8px">Things you want JARVIS to remember. Sent with every request.</p>${D.facts.map((f, i) => `<div class="item"><div class="k">${esc(f)}</div><button class="x" data-act="factDel" data-i="${i}" aria-label="Delete">✕</button></div>`).join('')}<form class="row" data-form="fact"><input class="in grow" name="t" placeholder="e.g. I prefer metric units" required><button class="btn sm">Remember</button></form></div>
+  <div class="panel"><h3>SCENARIO CANON <span class="sp"></span><span class="tag sim">In-world fiction</span></h3><p class="note" style="margin-bottom:8px">Invented in-world events JARVIS established. Fiction, not fact.</p>${D.canon.length ? D.canon.map((f, i) => `<div class="item"><div class="k">${esc(f)}</div><button class="x" data-act="canonDel" data-i="${i}" aria-label="Delete">✕</button></div>`).join('') : '<p class="muted">Empty.</p>'}<form class="row" data-form="canon" style="margin-top:8px"><input class="in grow" name="t" placeholder="Add a canon fact"><button class="btn sm">Add</button></form>${D.canon.length ? '<button class="btn sm danger" style="margin-top:10px" data-act="canonClear">Clear canon</button>' : ''}</div></div>`;
+}
+function vConvs() {
+  $('#view-conversations').innerHTML = head('CONVERSATIONS', '<button class="btn sm" data-act="convNew">+ New</button><button class="btn sm" data-act="convExport">Export JSON</button>') +
+    (D.convs.length ? D.convs.map(c => `<div class="item"><div class="k"><b>${esc(c.title)}</b><br><small class="muted">${new Date(c.ts).toLocaleString()} · ${c.messages.length} messages${c.id === D.cur ? ' · current' : ''}</small></div><button class="btn sm" data-act="convOpen" data-id="${c.id}">Open</button><button class="x" data-act="convDel" data-id="${c.id}" aria-label="Delete">✕</button></div>`).join('') : '<p class="muted">No conversations yet.</p>');
+}
+function vKnow() {
+  const q = ui.nfilter.toLowerCase(); const list = D.notes.filter(n => !q || (n.title + n.body).toLowerCase().includes(q));
+  $('#view-knowledge').innerHTML = head('KNOWLEDGE BASE', '<span class="tag">Local notes</span>') + `<form data-form="note" style="margin-bottom:14px"><div class="row"><input class="in grow" name="t" placeholder="Title" required aria-label="Title"></div><textarea class="in" name="b" rows="3" placeholder="Paste or write knowledge here…" style="margin:8px 0" required aria-label="Body"></textarea><button class="btn sm">Save note</button></form><input class="in" id="noteFilter" placeholder="Filter notes…" value="${esc(ui.nfilter)}" style="margin-bottom:12px" aria-label="Filter notes">` +
+    (list.length ? list.map(n => `<div class="panel" style="margin-bottom:10px"><h3>${esc(n.title)} <span class="sp"></span><button class="x" data-act="noteDel" data-id="${n.id}" aria-label="Delete">✕</button></h3><p style="white-space:pre-wrap;margin-bottom:8px">${esc(n.body.slice(0, 600))}${n.body.length > 600 ? '…' : ''}</p><button class="btn sm" data-act="noteAsk" data-id="${n.id}">Ask JARVIS about this</button></div>`).join('') : '<p class="muted">No notes.</p>');
+  const nf = $('#noteFilter'); nf.addEventListener('input', () => { ui.nfilter = nf.value; const pos = nf.selectionStart; vKnow(); const n2 = $('#noteFilter'); n2.focus(); n2.setSelectionRange(pos, pos); });
+}
+const capList = () => [
+  ['Voice input (SpeechRecognition)', !!SR], ['Voice output (speechSynthesis)', !!window.speechSynthesis], ['Camera (getUserMedia)', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)],
+  ['Secure context (HTTPS/localhost)', window.isSecureContext], ['Geolocation', !!navigator.geolocation], ['Notifications', 'Notification' in window], ['Clipboard', !!navigator.clipboard], ['Persistent storage', !!navigator.storage],
+];
+function vTools() {
+  $('#view-tools').innerHTML = head('TOOLS & SKILLS', '<span class="tag live">Detected in this browser</span>') + `<div class="panel" style="margin-bottom:14px"><table class="cap"><tr><th>CAPABILITY</th><th>STATUS</th></tr>${capList().map(([n, ok]) => `<tr><td>${n}</td><td class="${ok ? 'ok' : 'bad'}">${ok ? 'Available' : 'Unavailable'}</td></tr>`).join('')}</table></div>
+  <div class="row"><button class="btn sm" data-act="capGeo">Enable location/weather</button><button class="btn sm" data-act="capNotif">Allow notifications</button><button class="btn sm" data-act="openCam">Open camera</button></div>
+  <p class="note" style="margin-top:12px">JARVIS cannot control your device, browse the live web or read local files from here. It can chat, listen, speak, look through the camera on request, and keep notes in this browser.</p>`;
+}
+function vFlows() {
+  $('#view-workflows').innerHTML = head('WORKFLOWS') + `<div class="grid2">${D.workflows.map(w => `<div class="panel"><h3>${esc(w.name)}</h3><p class="note" style="margin-bottom:10px">${esc(w.desc || w.prompt.slice(0, 90))}</p><div class="row"><button class="btn sm" data-act="wfRun" data-id="${w.id}">▶ Run</button>${w.builtin ? '' : `<button class="btn sm danger" data-act="wfDel" data-id="${w.id}">Delete</button>`}</div></div>`).join('')}</div>
+  <div class="panel" style="margin-top:14px"><h3>NEW WORKFLOW</h3><form data-form="flow"><input class="in" name="n" placeholder="Name" required style="margin-bottom:8px" aria-label="Name"><textarea class="in" name="p" rows="3" placeholder="What should JARVIS do when this runs?" required aria-label="Instruction"></textarea><button class="btn sm" style="margin-top:8px">Save workflow</button></form></div>`;
+}
+
+/* dashboard renderers */
+function renderOverview() {
+  const llm = (status.ai.st === 'ok' ? 1 : 0) + (status.el.st === 'ok' ? 1 : 0);
+  const rows = [['AI', 'AI Core', 'Active', 'ok'], ['M', 'Memory', memCount() + ' stored', 'cy'], ['V', 'Voice', SR || window.speechSynthesis ? 'Available' : 'Unsupported', SR ? 'ok' : 'warn'], ['A', 'Agents', 'Simulation', 'warn'], ['L', 'LLMs', status.ai.st === 'ok' ? '1 connected' : 'Not connected', status.ai.st === 'ok' ? 'ok' : 'warn'], ['S', 'System', navigator.onLine ? 'Online' : 'Offline', navigator.onLine ? 'ok' : 'bad']];
+  $('#ovList').innerHTML = rows.map(r => `<div class="ovrow"><div class="ico">${r[0]}</div><div><b>${r[1]}</b><small class="${r[3]}">${r[2]}</small></div></div>`).join('');
+  $('#llmCount').textContent = llm + ' connected';
+}
+function renderFeed() {
+  const demo = [{ text: 'Design review with the product team', kind: 'DEMO', real: false, sub: 'Sample entry' }, { text: 'Pull requests awaiting review', kind: 'DEMO', real: false, sub: 'Sample entry' }, { text: 'Deep-work block suggested 2–4 PM', kind: 'DEMO', real: false, sub: 'Sample entry' }];
+  const items = ui.feed.slice(0, 4).map(f => ({ text: f.text, kind: f.kind, real: true, sub: f.ts.toLocaleTimeString() })).concat(demo).slice(0, 6);
+  $('#feedList').innerHTML = items.map(i => `<div class="feeditem"><div class="k"><b>${esc(i.text)}</b><small>${esc(i.sub)}</small></div><span class="tag ${i.real ? (i.kind === 'WARN' ? 'err' : 'live') : 'sim'}">${i.real ? i.kind : 'Demo'}</span></div>`).join('');
+  if ($('#notifPanel').classList.contains('open')) renderNotif();
+}
+function renderTimeline() {
+  const k = dkey(new Date()), ev = D.events.filter(e => e.date === k).sort((a, b) => a.time.localeCompare(b.time));
+  const demo = [['09:30', 'Daily standup'], ['12:00', 'Finalise HUD panel spacing'], ['14:00', 'Deep-work block'], ['16:30', 'Design review']];
+  const tag = $('#tlTag');
+  if (ev.length) { tag.textContent = 'Today'; tag.className = 'tag live'; $('#timeline').innerHTML = ev.map(e => `<div class="tlrow"><time>${e.time}</time><i></i><span class="t">${esc(e.title)}</span></div>`).join(''); }
+  else { tag.textContent = 'Demo'; tag.className = 'tag sim'; $('#timeline').innerHTML = demo.map(e => `<div class="tlrow" style="opacity:.7"><time>${e[0]}</time><i style="background:var(--warn);box-shadow:0 0 8px var(--warn)"></i><span class="t">${e[1]} <small class="muted">(sample)</small></span></div>`).join(''); }
+}
+function renderAgentGrid() {
+  $('#agentGrid').innerHTML = AGENTS.map(a => `<button class="agent ${D.agent === a.id ? 'sel' : ''}" data-act="agentSet" data-id="${a.id}" title="Select specialty"><b>${a.name}</b><small style="color:${a.col}">● ${a.st} <span class="muted">(sim)</span></small><canvas class="wave" data-kind="agent" data-col="${a.col}" data-amp="${a.amp}"></canvas></button>`).join('');
+  rebindWaves();
+}
+function rebindWaves() { for (let i = waves.length - 1; i >= 0; i--) if (!document.body.contains(waves[i].c)) waves.splice(i, 1); $$('canvas.wave').forEach(c => { if (!waves.some(w => w.c === c)) waves.push({ c, ctx: c.getContext('2d'), kind: c.dataset.kind, col: c.dataset.col || '#19e6ff', amp: parseFloat(c.dataset.amp || '.3'), seed: Math.random() * 100 }); }); }
+function renderLLM() {
+  const row = (n, st, sub) => `<div class="llm"><span class="dot ${stDot(st)}"></span><div><b>${n}</b><small class="${st === 'ok' ? 'ok' : 'muted'}">${sub}</small></div></div>`;
+  const gem = S.provider === 'gemini', oa = S.provider === 'openai';
+  $('#llmList').innerHTML = row('Gemini', gem ? status.ai.st : 'idle', gem ? (status.ai.st === 'ok' ? 'Connected' : status.ai.st === 'err' ? 'Error — see Settings' : 'Not connected') : 'Not selected') +
+    row('OpenAI', oa ? status.ai.st : 'idle', oa ? (status.ai.st === 'ok' ? 'Connected' : status.ai.st === 'err' ? 'Error — see Settings' : 'Not connected') : 'Not selected') +
+    row('ElevenLabs', status.el.st, status.el.st === 'ok' ? 'Connected' : S.elKey ? 'Not connected' : 'Not configured') +
+    row('Browser voice', window.speechSynthesis ? 'ok' : 'err', window.speechSynthesis ? 'Available' : 'Unsupported') +
+    row('Speech input', SR ? 'ok' : 'err', SR ? 'Available' : 'Unsupported') +
+    row('Camera vision', visionOK() ? 'ok' : 'idle', visionOK() ? 'Model supports images' : 'Model lacks vision');
+}
+function refreshStatus() {
+  const on = navigator.onLine, ok = status.ai.st === 'ok';
+  const [txt, cls, dot] = !on ? ['OFFLINE', 'bad', 'bad'] : ok ? ['OPTIMAL', 'ok', ''] : ['AI NOT CONNECTED', 'warn', 'warn'];
+  $('#statusTxt').textContent = txt; $('#statusTxt').className = cls; $('#statusDot').className = 'dot ' + dot;
+  $('#sideLLM').textContent = ok ? `AI: connected (${S.provider})` : 'AI: not connected';
+  $('#sideLLM').className = 'llmline ' + (ok ? 'ok' : '');
+  const set = (id, st, msg) => { const e = $(id); if (!e) return; e.innerHTML = `<span class="dot ${stDot(st)}"></span>${st === 'ok' ? 'Connected' : st === 'busy' ? 'Testing…' : 'Not connected'}`; };
+  set('#setStatus', status.ai.st); set('#setElStatus', status.el.st);
+  $('#setStatusMsg').textContent = status.ai.msg; $('#setElMsg').textContent = status.el.msg;
+  $('#setStatusMsg').className = 'note ' + (status.ai.st === 'err' ? 'bad' : '');
+  renderOverview(); renderLLM();
+  if (ui.view === 'aicore') vAICore();
+}
+
+/* notifications & search */
+function renderNotif() {
+  const real = ui.feed;
+  $('#notifPanel').innerHTML = real.length ? real.map(f => `<div class="it"><small>${f.kind}</small>${esc(f.text)}<br><span class="muted" style="font-size:12px">${f.ts.toLocaleTimeString()}</span></div>`).join('') : '<div class="it muted">No activity yet.</div>';
+}
+function updateBadge() { const b = $('#notifBadge'); b.textContent = Math.min(ui.unread, 99); b.style.display = ui.unread ? 'grid' : 'none'; }
+function doSearch(q) {
+  const box = $('#searchRes'); q = q.trim().toLowerCase();
+  if (q.length < 2) { box.classList.remove('open'); return; }
+  const r = [];
+  D.tasks.forEach(t => t.text.toLowerCase().includes(q) && r.push(['TASK', t.text, 'tasks']));
+  D.notes.forEach(n => (n.title + ' ' + n.body).toLowerCase().includes(q) && r.push(['NOTE', n.title, 'knowledge']));
+  D.events.forEach(e => e.title.toLowerCase().includes(q) && r.push(['EVENT', e.date + ' ' + e.title, 'calendar']));
+  D.facts.forEach(f => f.toLowerCase().includes(q) && r.push(['MEMORY', f, 'memory']));
+  D.canon.forEach(f => f.toLowerCase().includes(q) && r.push(['CANON', f, 'memory']));
+  D.convs.forEach(c => c.messages.some(m => m.text.toLowerCase().includes(q)) && r.push(['CHAT', c.title, 'conversations']));
+  box.innerHTML = r.length ? r.slice(0, 12).map(x => `<button data-act="nav" data-view="${x[2]}"><small>${x[0]}</small>${esc(x[1].slice(0, 70))}</button>`).join('') : '<div class="it muted">No matches.</div>';
+  box.classList.add('open');
+}
+
+/* briefing */
+function dataContext() {
+  const today = dkey(new Date()), open = D.tasks.filter(t => !t.done), ev = D.events.filter(e => e.date === today).sort((a, b) => a.time.localeCompare(b.time));
+  return `[REAL DATA FROM THIS BROWSER]\nNow: ${new Date().toString()}\nWeather: ${ui.wx || 'unknown'}\nNetwork: ${navigator.onLine ? 'online' : 'offline'}\nOpen tasks (${open.length}): ${open.map(t => t.text + (t.due ? ` (due ${t.due}${t.due < today ? ', OVERDUE' : ''})` : '')).join('; ') || 'none'}\nToday's events: ${ev.map(e => e.time + ' ' + e.title).join('; ') || 'none'}`;
+}
+function localBriefing() {
+  const today = dkey(new Date()), open = D.tasks.filter(t => !t.done), od = open.filter(t => t.due && t.due < today), ev = D.events.filter(e => e.date === today);
+  return `Executive briefing${S.name ? ', ' + S.name : ', sir'} (generated locally; no AI key is connected):\n- ${open.length} open task(s)${od.length ? `, ${od.length} overdue` : ''}\n- ${ev.length} event(s) today${ev.length ? ': ' + ev.map(e => e.time + ' ' + e.title).join(', ') : ''}\n- Weather: ${ui.wx || 'not enabled'}\n- Network: ${navigator.onLine ? 'online' : 'offline'}\n\nConnect an AI key in Settings for a fuller briefing.`;
+}
+function briefing() {
+  openChat();
+  if (!S.aiKey) { pushSys(localBriefing()); return; }
+  send('Give me my executive briefing now: concise, prioritised, in your usual manner. Base it only on the data below and do not invent real-world facts.\n\n' + dataContext());
+}
+
+/* ---------- ACTION & FORM DISPATCH ---------- */
+const ACT = {
+  nav: el => showView(el.dataset.view),
+  openSettings: () => openSettings(),
+  openNotif: () => { $('#notifBtn').click(); },
+  openCam: () => camOpen(),
+  testAi: () => { testAI().then(() => renderView('aicore')); },
+  qcTask: () => { showView('tasks'); setTimeout(() => $('#view-tasks input[name=t]') && $('#view-tasks input[name=t]').focus(), 50); },
+  qcVoice: () => { openChat(); toggleListen(); },
+  taskToggle: el => { const t = D.tasks.find(x => x.id === el.dataset.id); if (t) { t.done = el.checked; store.set('tasks', D.tasks); vTasks(); renderNavCounts(); } },
+  taskDel: el => { D.tasks = D.tasks.filter(x => x.id !== el.dataset.id); store.set('tasks', D.tasks); vTasks(); renderNavCounts(); },
+  calPrev: () => { ui.cal.m--; if (ui.cal.m < 0) { ui.cal.m = 11; ui.cal.y--; } vCalendar(); },
+  calNext: () => { ui.cal.m++; if (ui.cal.m > 11) { ui.cal.m = 0; ui.cal.y++; } vCalendar(); },
+  calDay: el => { ui.cal.sel = el.dataset.k; vCalendar(); },
+  evDel: el => { D.events = D.events.filter(x => x.id !== el.dataset.id); store.set('events', D.events); vCalendar(); renderTimeline(); },
+  factDel: el => { D.facts.splice(+el.dataset.i, 1); store.set('facts', D.facts); vMemory(); renderNavCounts(); },
+  canonDel: el => { D.canon.splice(+el.dataset.i, 1); store.set('canon', D.canon); vMemory(); renderNavCounts(); },
+  canonClear: () => { if (confirm('Clear the entire Scenario Canon?')) { D.canon = []; store.set('canon', D.canon); vMemory(); renderNavCounts(); } },
+  noteDel: el => { D.notes = D.notes.filter(x => x.id !== el.dataset.id); store.set('notes', D.notes); vKnow(); renderNavCounts(); },
+  noteAsk: el => { const n = D.notes.find(x => x.id === el.dataset.id); if (n) { send(`Using only this note from my knowledge base, summarise it and tell me what stands out.\n\nTitle: ${n.title}\n\n${n.body.slice(0, 6000)}`); } },
+  convNew: () => { newConv(); showView('conversations'); },
+  convOpen: el => { D.cur = el.dataset.id; saveConvs(); renderChat(); openChat(); vConvs(); },
+  convDel: el => { D.convs = D.convs.filter(c => c.id !== el.dataset.id); if (D.cur === el.dataset.id) D.cur = null; saveConvs(); renderChat(); vConvs(); renderNavCounts(); },
+  convExport: () => { const b = new Blob([JSON.stringify(D.convs, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'jarvis-conversations.json'; a.click(); },
+  agentSet: el => { D.agent = el.dataset.id; store.set('agent', D.agent); renderAgentGrid(); if (ui.view === 'agents') vAgents(); const a = AGENTS.find(x => x.id === D.agent); toast(a ? a.name + ' specialty selected.' : 'General mode selected.'); feed('Specialty set: ' + (a ? a.name : 'General'), 'INFO'); },
+  wfRun: el => { const w = D.workflows.find(x => x.id === el.dataset.id); if (!w) return; if (w.focus) setFocus(true); send(w.prompt + '\n\n' + dataContext()); },
+  wfDel: el => { D.workflows = D.workflows.filter(x => x.id !== el.dataset.id); store.set('workflows', D.workflows); vFlows(); },
+  capGeo: () => askLocation(),
+  capNotif: () => { if (!('Notification' in window)) return toast('Notifications unsupported.'); Notification.requestPermission().then(p => toast('Notification permission: ' + p)); },
+};
+const FORM = {
+  task: f => { const t = f.t.value.trim(); if (!t) return; D.tasks.unshift({ id: uid(), text: t, done: false, due: f.d.value || '' }); store.set('tasks', D.tasks); vTasks(); renderNavCounts(); },
+  event: f => { D.events.push({ id: uid(), date: ui.cal.sel, time: f.tm.value, title: f.t.value.trim() }); store.set('events', D.events); vCalendar(); renderTimeline(); },
+  fact: f => { D.facts.push(f.t.value.trim()); store.set('facts', D.facts); vMemory(); renderNavCounts(); },
+  canon: f => { const v = f.t.value.trim(); if (v) { D.canon.push(v); store.set('canon', D.canon); } vMemory(); renderNavCounts(); },
+  note: f => { D.notes.unshift({ id: uid(), title: f.t.value.trim(), body: f.b.value.trim() }); store.set('notes', D.notes); vKnow(); renderNavCounts(); },
+  flow: f => { D.workflows.push({ id: uid(), name: f.n.value.trim(), prompt: f.p.value.trim() }); store.set('workflows', D.workflows); vFlows(); },
+};
+function newConv() { const c = { id: uid(), title: 'New conversation', ts: Date.now(), messages: [] }; D.convs.unshift(c); D.cur = c.id; saveConvs(); renderChat(); renderNavCounts(); }
+
+/* ---------- 11. SETTINGS ---------- */
+function openSettings() {
+  $('#setName').value = S.name; $('#setProvider').value = S.provider; $('#setModel').value = S.model; $('#setKey').value = S.aiKey;
+  $('#setElKey').value = S.elKey; $('#setElVoice').value = S.elVoice; $('#setMute').checked = S.mute; $('#setAutoLook').checked = S.autoLook; $('#setPrompt').value = S.prompt;
+  refreshStatus(); $('#settings').classList.add('open'); $('#setName').focus();
+}
+function saveFromForm() {
+  const prevKey = S.aiKey, prevEl = S.elKey, prevProv = S.provider, prevModel = S.model;
+  S.name = $('#setName').value.trim(); S.provider = $('#setProvider').value; S.model = $('#setModel').value.trim() || (S.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+  S.aiKey = $('#setKey').value.trim(); S.elKey = $('#setElKey').value.trim(); S.elVoice = $('#setElVoice').value.trim();
+  S.mute = $('#setMute').checked; S.autoLook = $('#setAutoLook').checked; S.prompt = $('#setPrompt').value.trim() || DEFAULT_PROMPT;
+  if (S.aiKey !== prevKey || S.provider !== prevProv || S.model !== prevModel) setAI('idle', 'Not tested yet.');
+  if (S.elKey !== prevEl) setEL('idle', 'Not tested yet.');
+  saveSettings(); $('#opName').textContent = S.name || 'Operator'; $('#opAv').textContent = (S.name || 'OP').slice(0, 2).toUpperCase();
+}
+function wipeAll() {
+  if (!confirm('Delete all keys, settings, chats, tasks, notes and memory from this browser?')) return;
+  stopSpeak(); camStop();
+  Object.keys(localStorage).filter(k => k.startsWith(PFX)).forEach(k => localStorage.removeItem(k));
+  location.reload();
+}
+
+/* ---------- FOCUS MODE ---------- */
+let focusTimer = null, focusEnd = 0;
+function setFocus(on) {
+  document.body.classList.toggle('focus', on);
+  clearInterval(focusTimer);
+  if (on) { focusEnd = Date.now() + 25 * 60000; focusTimer = setInterval(() => { const l = Math.max(0, focusEnd - Date.now()); $('#focusBtn').textContent = `⚡ Focus ${pad(Math.floor(l / 60000))}:${pad(Math.floor(l / 1000) % 60)}`; if (!l) { setFocus(false); toast('Focus sprint complete, sir.'); } }, 500); }
+  else $('#focusBtn').textContent = '⚡ Focus Mode';
+}
+
+/* ---------- 12. BOOT & WIRING ---------- */
+const drawer = { open() { $('#sidebar').classList.add('open'); $('#scrim').classList.add('open'); }, close() { $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('open'); } };
+const closeDrawer = () => drawer.close();
+
+function tick() {
+  const n = new Date();
+  $('#clock').textContent = n.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  $('#dateEl').textContent = n.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function wire() {
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-act]'); if (t) { if (t.tagName === 'A') e.preventDefault(); const f = ACT[t.dataset.act]; if (f) f(t, e); }
+    if (!e.target.closest('.searchwrap')) $('#searchRes').classList.remove('open');
+    if (!e.target.closest('#notifPanel') && !e.target.closest('#notifBtn')) $('#notifPanel').classList.remove('open');
+  });
+  document.addEventListener('submit', e => { const f = e.target.closest('form[data-form]'); if (f) { e.preventDefault(); FORM[f.dataset.form](f.elements); f.reset(); } });
+  $('#menuBtn').onclick = drawer.open; $('#scrim').onclick = drawer.close;
+  $('#setBtn').onclick = openSettings; $('#setClose').onclick = () => { saveFromForm(); $('#settings').classList.remove('open'); renderView(ui.view); };
+  $('#setKeyToggle').onclick = () => { const k = $('#setKey'), show = k.type === 'password'; k.type = show ? 'text' : 'password'; $('#setKeyToggle').textContent = show ? 'Hide' : 'Show'; };
+  $('#setProvider').onchange = () => { const p = $('#setProvider').value, m = $('#setModel').value.trim(); if (!m || m === 'gemini-2.5-flash' || m === 'gpt-4o-mini') $('#setModel').value = p === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini'; saveFromForm(); };
+  $$('#settings input,#settings textarea').forEach(el => el.addEventListener('change', saveFromForm));
+  $('#setTest').onclick = testAI; $('#setTestEl').onclick = testEL;
+  $('#setPromptReset').onclick = () => { $('#setPrompt').value = DEFAULT_PROMPT; saveFromForm(); };
+  $('#setClearChat').onclick = () => { if (confirm('Clear all chat history?')) { D.convs = []; D.cur = null; saveConvs(); renderChat(); renderNavCounts(); toast('Chat history cleared.'); } };
+  $('#setClear').onclick = wipeAll;
+
+  $('#chatBtn').onclick = () => $('#chat').classList.contains('open') ? closeChat() : openChat();
+  $('#chatClose').onclick = closeChat; $('#chatNew').onclick = newConv;
+  $('#chatClear').onclick = () => { const c = curConv(); c.messages = []; c.title = 'New conversation'; saveConvs(); renderChat(); renderNavCounts(); };
+  $('#chatForm').onsubmit = e => { e.preventDefault(); const v = $('#chatInput').value; $('#chatInput').value = ''; send(v); };
+  $('#cmdForm').onsubmit = e => { e.preventDefault(); const v = $('#cmdInput').value; $('#cmdInput').value = ''; send(v); };
+  $('#chatMic').onclick = toggleListen; $('#micBtn').onclick = toggleListen; $('#talkBtn').onclick = () => { openChat(); toggleListen(); };
+  $('#chatCam').onclick = camOpen; $('#bbCam').onclick = camOpen;
+  $('#briefBtn').onclick = briefing; $('#bbLoc').onclick = askLocation;
+  $('#focusBtn').onclick = () => setFocus(!document.body.classList.contains('focus'));
+  $('#camEnable').onclick = camStart; $('#camClose').onclick = camClose; $('#camStop').onclick = camStop; $('#camLook').onclick = camLook;
+  $('#camFlip').onclick = () => { cam.facing = cam.facing === 'environment' ? 'user' : 'environment'; camStart(); };
+  $('#camQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); camLook(); } });
+  $('#searchInput').addEventListener('input', e => doSearch(e.target.value));
+  $('#notifBtn').onclick = () => { const p = $('#notifPanel'); p.classList.toggle('open'); if (p.classList.contains('open')) { renderNotif(); ui.unread = 0; updateBadge(); } };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if ($('#camModal').classList.contains('open')) camClose();
+      else if ($('#settings').classList.contains('open')) $('#setClose').click();
+      else if ($('#chat').classList.contains('open')) closeChat();
+      else { drawer.close(); $('#notifPanel').classList.remove('open'); $('#searchRes').classList.remove('open'); }
+    }
+  });
+  $$('.modal').forEach(m => m.addEventListener('mousedown', e => { if (e.target === m) { if (m.id === 'camModal') camClose(); else $('#setClose').click(); } }));
+  addEventListener('online', updateNet); addEventListener('offline', updateNet);
+  if (navigator.connection) navigator.connection.addEventListener('change', updateNet);
+  if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => { };
+}
+
+function boot() {
+  const lines = [
+    'Initialising core systems…', `Storage: ${(() => { try { localStorage.setItem('t', 1); localStorage.removeItem('t'); return 'OK'; } catch (e) { return 'BLOCKED'; } })()}`,
+    `Voice input: ${SR ? 'available' : 'unsupported'}`, `Voice output: ${window.speechSynthesis ? 'available' : 'unsupported'}`,
+    `Camera: ${navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 'available' : 'needs HTTPS'}`, `AI key: ${S.aiKey ? 'present (untested)' : 'not configured'}`, 'All systems nominal. Welcome.'];
+  const log = $('#bootLog'), bar = $('#bootBar i'); let i = 0, done = false;
+  const finish = () => { if (done) return; done = true; $('#boot').classList.add('out'); setTimeout(() => $('#boot').remove(), 800); feed('Core online. Welcome back.', 'LIVE'); };
+  $('#boot').onclick = finish; addEventListener('keydown', finish, { once: true });
+  const step = () => { if (done) return; if (i < lines.length) { const d = document.createElement('div'); d.textContent = '> ' + lines[i]; log.appendChild(d); bar.style.width = ((i + 1) / lines.length * 100) + '%'; i++; setTimeout(step, reduce ? 30 : 260); } else setTimeout(finish, reduce ? 50 : 450); };
+  step();
+}
+
+function init() {
+  renderNav(); wire(); initWaves(); initCore();
+  $('#opName').textContent = S.name || 'Operator'; $('#opAv').textContent = (S.name || 'OP').slice(0, 2).toUpperCase();
+  curConv(); renderChat(); renderOverview(); renderFeed(); renderTimeline(); renderAgentGrid(); renderLLM(); refreshStatus(); updateNet(); loadWeather(); updateBadge();
+  tick(); setInterval(tick, 1000); updateSystem(); setInterval(updateSystem, 2500); setInterval(renderTimeline, 60000);
+  setAct('idle'); requestAnimationFrame(loop); boot();
+}
+init();
+})();
+</script>
+</body>
+</html>
